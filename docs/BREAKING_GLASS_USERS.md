@@ -48,7 +48,7 @@ O **Breaking Glass** é um processo automatizado de acesso emergencial a ambient
 ### 1. Solicitação de Acesso (Manual)
 
 Acesse o board do Jira e crie o ticket em **Access Requests**.
-![Tela de Access Requests no Jira](BREAKING_GLASS_USERS/image.png)
+![Tela de Access Requests no Jira](BREAKING_GLASS_USERS/image-5.png)
 
 Acesse **EBB Access Request**.
 ![Tela de EBB Access Request](BREAKING_GLASS_USERS/image-7.png)
