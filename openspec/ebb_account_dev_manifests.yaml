@@ -1,0 +1,208 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    iam.gke.io/gcp-service-account: ebb-account@ebb-money-flows-dev.iam.gserviceaccount.com
+  labels:
+    env: ebb-dev
+  name: ebb-account
+  namespace: core
+---
+apiVersion: v1
+data:
+  ACCOUNT_EVENTS_TOPIC: ebb-account-events
+  API_CREATE_ACCOUNT_REQUEST_VALIDATION: "FALSE"
+  AWS_DYNAMO_TABLES_PREFIX: devgcp-
+  AWS_REGION: sa-east-1
+  BACEN_HOST: https://forex2-internal.bexs.com.br
+  CORS_ALLOWED_ORIGINS: https://crossbexs-develop.bexs.com.br
+  DB_HOST: cloudsql-mysql(account-develop:southamerica-east1:account-dev)
+  DB_HOST_REPLICA: cloudsql-mysql(account-develop:southamerica-east1:account-dev)
+  DB_USER: account-application
+  ENVIRONMENT: develop
+  KEYCLOAK_AUTH_URL: http://10.90.72.6
+  LOG_LEVEL: DEBUG
+  NOTIFICATION_DIGITALFX_PROJECT_ID: bexs-digitalfx-dev
+  NOTIFICATION_DIGITALFX_TOPIC: digitalfx-notification
+  NOTIFICATION_HOST: https://forex2-internal.bexs.com.br
+  NUMBER_OF_PROCESSORS: "2"
+  PIX_SPI_HOST: pix-spi-payout:81
+  PIX_SYNC_TOPIC_NAME: ebb--account-pix-sync
+  PROJECT_ID: ebb-money-flows-dev
+  REALM: Develop
+  SITE: gcp
+  STATEMENT_ORIGINS: https://dashboard-sandbox.ebury.com.br,https://crossbexs-develop.bexs.com.br,https://dashboard2.bexs.com.br
+  SWIFT_QUEUE_NAME: dev-payout-transfer-event
+  TEMIS_BASE_URL: https://clientjourney-api-dev-int.ebury.com.br
+  TEMIS_QUERY_PROFILE_QUEUE_NAME: ebb-temis-onboarding-engine-onboarding-status-events-v1-account-subscription
+  TEMIS_TOKEN_AUDIENCE: https://compliance-dev.bexs.com.br
+  TEMIS_TOKEN_URL: https://bexs.auth0.com/oauth/token
+  TOKEN_AUDIENCE: https://forex2.bexs.com.br
+  TOKEN_AUTHORITY: https://bexs.auth0.com/
+  TZ: America/Sao_Paulo
+kind: ConfigMap
+metadata:
+  annotations:
+    alert-channel: bexsaccount
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
+    slack-channel: bexsaccount
+  labels:
+    app: account
+    env: ebb-dev
+    team: bexsaccount
+  name: account-environment-vars-8h6t94fdmf
+  namespace: core
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    alert-channel: bexsaccount
+    slack-channel: bexsaccount
+  labels:
+    app: account
+    env: ebb-dev
+    team: bexsaccount
+  name: account
+  namespace: core
+spec:
+  ports:
+  - name: api-rest-ext
+    port: 8080
+    protocol: TCP
+    targetPort: 9489
+  - name: api-rest-int
+    port: 8081
+    protocol: TCP
+    targetPort: 9490
+  - name: metrics
+    port: 7777
+    protocol: TCP
+    targetPort: 7777
+  selector:
+    app: account
+    env: ebb-dev
+    team: bexsaccount
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    alert-channel: bexsaccount
+    slack-channel: bexsaccount
+  labels:
+    app: account
+    env: ebb-dev
+    team: bexsaccount
+  name: account
+  namespace: core
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: account
+      env: ebb-dev
+      team: bexsaccount
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        alert-channel: bexsaccount
+        slack-channel: bexsaccount
+      labels:
+        app: account
+        env: ebb-dev
+        team: bexsaccount
+    spec:
+      containers:
+      - args:
+        - -account
+        envFrom:
+        - configMapRef:
+            name: account-environment-vars-8h6t94fdmf
+        - secretRef:
+            name: ebb-account
+        image: us-docker.pkg.dev/bexs-platform/application/account:7aaf5beb
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 7777
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 5
+        name: account
+        ports:
+        - containerPort: 8080
+          name: api-rest
+        - containerPort: 7777
+          name: metrics
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 7777
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: 150m
+            memory: 150Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+      serviceAccountName: ebb-account
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  labels:
+    env: ebb-dev
+  name: ebb-account
+  namespace: core
+spec:
+  dataFrom:
+  - extract:
+      key: ebb-account
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: gcpsm-secret-store
+  target:
+    creationPolicy: Owner
+    name: ebb-account
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  annotations:
+    alert-channel: bexsaccount
+    slack-channel: bexsaccount
+  labels:
+    app: account
+    env: ebb-dev
+    release: monitoring
+    team: bexsaccount
+  name: account
+  namespace: core
+spec:
+  endpoints:
+  - interval: 10s
+    path: /metrics
+    port: metrics
+  namespaceSelector:
+    matchNames:
+    - finance
+  selector:
+    matchLabels:
+      app: account

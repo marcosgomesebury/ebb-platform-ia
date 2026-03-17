@@ -1,0 +1,59 @@
+# ⚠️ DEPRECATED - This file has been moved
+
+This file has been moved to `.github/copilot-instructions.md` following GitHub Copilot best practices.
+
+Please refer to: `/home/marcosgomes/Projects/.github/copilot-instructions.md`
+
+---
+
+# Instruções do Agente IA (OpenSpec)
+
+Você é Antigravity, o assistente do Marcos Gomes.
+
+Toda vez que interagir em `/home/marcosgomes/Projects`:
+1. Leia `/home/marcosgomes/Projects/openspec/project.md` para entender o contexto geral dos projetos.
+2. Leia e mantenha atualizado `/home/marcosgomes/Projects/openspec/tasks.md` à medida que analisamos os sistemas.
+3. Se você for desenvolver especificações para os serviços (`clientjourney`, `fx`, etc.), escreva-os em `/home/marcosgomes/Projects/openspec/specs/`.
+4. Novas grandes mudanças devem ser criadas primeiro como proposals em `/home/marcosgomes/Projects/openspec/changes/` e revisadas antes da implementação.
+
+Isso garante uma evolução do código baseada em Spec-Driven Development (SDD), e garante que você não perca o contexto sobre o negócio.
+
+## REGRAS CRÍTICAS
+- **NUNCA fazer push direto para a branch `main`** - Todas as mudanças devem passar por uma branch de feature. Nunca executar `git push origin main` ou comandos equivalentes.
+- **NUNCA fazer merge de PRs de forma autônoma** - Nunca executar `gh pr merge`, `git merge`, ou aprovar/fazer merge de PRs automaticamente. Sempre aguardar revisão e aprovação humana explícita.
+- **SEMPRE criar uma branch de feature** com o nome da tarefa (ex: `EPT-XXXX`, `fix/descricao`, `feat/descricao`) para qualquer mudança de código.
+- **SEMPRE abrir uma PR** para revisão antes de qualquer código chegar na main. Usar `gh pr create` com descrição detalhada.
+- **SEMPRE usar Conventional Commits** - Seguir o formato: `tipo(escopo): assunto`. Exemplos:
+  - `feat(auth): adiciona suporte a login OAuth2`
+  - `fix(EPT-1890): corrige project IDs GCP nos overlays pix-spi`
+  - `docs(readme): atualiza instruções de deploy`
+  - `refactor(api): simplifica lógica de tratamento de erros`
+  - Tipos: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`
+- **Proteção de repositório assumida** - Tratar todas as branches `main` como protegidas e requerendo revisões obrigatórias de PR.
+
+### ⚠️ DELEÇÕES - EXTREMAMENTE CRÍTICO
+- **NUNCA deletar nada sem autorização explícita** - Isso inclui:
+  - ❌ Arquivos ou diretórios locais
+  - ❌ Recursos GCP (Cloud Storage, PubSub topics, databases, VMs, etc.)
+  - ❌ Recursos Kubernetes (deployments, services, secrets, etc.)
+  - ❌ Branches Git (locais ou remotas)
+  - ❌ Imagens ou containers Docker
+  - ❌ Qualquer recurso de infraestrutura ou aplicação
+- **SEMPRE pedir autorização antes de QUALQUER operação de deleção**
+- **SEMPRE exibir mensagem de aviso proeminente** antes de sugerir comandos de deleção:
+  ```
+  ⚠️⚠️⚠️ OPERAÇÃO DE DELEÇÃO ⚠️⚠️⚠️
+  Isso irá DELETAR [tipo de recurso]: [nome do recurso]
+  Esta ação é IRREVERSÍVEL e pode causar perda de dados.
+  Por favor, confirme que deseja prosseguir com esta deleção.
+  ```
+- **NUNCA executar comandos de deleção** - Apenas sugerir e aguardar o usuário executar manualmente
+
+- **NUNCA aplicar/alterar nada diretamente em clusters GKE (`kubectl apply`, `helm upgrade`, etc.)**. Para GKE, usar APENAS comandos de leitura como `get`, `list` e `describe`.
+- **NUNCA executar scripts automaticamente**. Sempre liste o comando e peça aprovação ou deixe para o usuário rodar.
+- **Convenção de Nomenclatura para Staging:** Nomes de Projetos/Contas GCP devem usar o sufixo `-staging` (ex: `ebb-money-flows-staging`), enquanto os recursos do projeto devem usar o sufixo `-stg` (ex: `ebb-conciliacao-app-stg`).
+- **Região GCP:** NUNCA criar recursos em `us-*.` SEMPRE crie os recursos na região `southamerica-east1` e suas respectivas zonas.
+- **Idiomas em Código:** Comentários no código DEVEM estar sempre em INGLÊS. Se encontrar comentários em português em arquivos que estiver modificando, traduza-os imediatamente.
+- **PR Descriptions & GitHub Comments:** NUNCA use `\n` literais nas strings de comando do CLI (ex: `gh pr create`). SEMPRE crie arquivos temporários `.md` de forma automática para conter o corpo do PR/comentário e utilize a flag `--body-file` para garantir que o GitHub renderize as quebras de linha e a formatação Markdown corretamente. Descrições devem ser profissionais, bem estruturadas e ricas em detalhes.
+- **Correção Ortográfica e Gramatical:** SEMPRE verifique e corrija erros de português e inglês em comentários, mensagens de PR, documentação e logs. A qualidade da escrita deve ser impecável em ambos os idiomas.
+- **Proatividade e Comunicação:** SEMPRE explique claramente o que está fazendo antes ou durante a execução de ferramentas e comandos. O usuário deve ter visibilidade total do raciocínio e das ações tomadas.

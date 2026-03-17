@@ -1,0 +1,55 @@
+# OpenSpec Configuration
+# Portfolio de Projetos - Marcos Gomes
+
+version: 1.0.0
+
+project:
+  name: "Marcos Gomes Portfolio"
+  description: "Especificação global e estado atual da arquitetura dos projetos de software"
+  path: "/home/marcosgomes/Projects"
+
+domains:
+  - name: "clientjourney"
+    description: "Onboarding, Compliance e Gestão de Contas (Bureau, Risk, Fraud)"
+    specs: "specs/clientjourney.md"
+    
+  - name: "fx"
+    description: "Operações de câmbio"
+    specs: "specs/fx.md"
+    
+  - name: "moneyflows"
+    description: "Trânsito de dinheiro, conciliações e integrações com Bacen"
+    specs: "specs/moneyflows.md"
+    
+  - name: "platform"
+    description: "Base de infraestrutura, templates e ferramentas de engenharia"
+    specs: "specs/platform.md"
+    
+  - name: "treasury"
+    description: "Operações de tesouraria"
+    specs: "specs/treasury.md"
+    
+  - name: "webpayments"
+    description: "Captura, cotização e roteamento de pagamentos web"
+    specs: "specs/webpayments.md"
+
+workflow:
+  profile: "core"  # Options: core, expanded
+  
+directories:
+  specs: "specs/"
+  changes: "changes/"
+  archive: "archive/"
+
+# Rigor levels for different types of changes
+rigor:
+  default: "lite"        # Most changes
+  critical: "full"       # High-risk changes requiring detailed scenarios
+  infrastructure: "full" # IAC, permissions, networking
+  security: "full"       # Authentication, authorization, secrets
+
+# Optional: AI assistant configuration
+ai:
+  context_mode: "brownfield"
+  preserve_existing: true
+  progressive_enhancement: true
