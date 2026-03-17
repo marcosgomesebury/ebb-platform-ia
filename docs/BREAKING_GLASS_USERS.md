@@ -59,11 +59,12 @@ Acesse **EBB Breaking Glass**.
 Crie o ticket. Você receberá uma notificação via e-mail:
 ![Notificação de ticket criado](BREAKING_GLASS_USERS/image.png)
 
+Peça para o seu gerente aprovar:
+![Tela de aprovação do gerente](BREAKING_GLASS_USERS/image-2.png)
+
 O acesso é concedido à pessoa que está criando a issue no Jira. Informe o nome do seu gerente também.
 ![Formulário de solicitação de acesso](BREAKING_GLASS_USERS/image-3.png)
 
-Peça para o seu gerente aprovar:
-![Tela de aprovação do gerente](BREAKING_GLASS_USERS/image-2.png)
 
 Após o acesso ser concedido, você receberá uma mensagem de confirmação via e-mail, que é enviada para o Solicitante, o Aprovador e o Time de Plataforma.
 ![E-mail de confirmação de acesso](BREAKING_GLASS_USERS/image-3.png)
