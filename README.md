@@ -250,3 +250,4 @@ Key behavioral rules:
 **Last Updated**: March 16, 2026  
 **Maintained by**: Marcos Gomes  
 **AI Assistant**: GitHub Copilot
+# ebb-platform-ia
