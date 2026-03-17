@@ -1,19 +1,22 @@
 ---
 name: jira_assistant
-description: Manage Jira issues and tasks - create, update, search, transition status, add comments, manage sprints. Auto-detects project configuration from workspace. Use when user says "create Jira ticket", "update sprint", "check Jira status", "transition issue", "search Jira", "add comment to ticket", "assign issue". Integrates with Atlassian MCP tools. Do NOT use for Confluence pages (use confluence skill) or general project planning (use spec-driven skill).
+description: Manage Jira issues and tasks via Atlassian REST API - create, update, search, transition status, add comments, manage sprints. Auto-detects project configuration from workspace. Use when user says "create Jira ticket", "update sprint", "check Jira status", "transition issue", "search Jira", "add comment to ticket", "assign issue". Direct API integration without external dependencies. Do NOT use for Confluence pages (use confluence skill) or general project planning (use spec-driven skill).
 license: CC-BY-4.0
 metadata:
   author: Marcos Gomes
   version: 1.0.0
   requires:
-    - Atlassian MCP Server
+    - requests
+    - python-dotenv
+  api:
+    - Atlassian Jira REST API v3
   projects:
     - EPT (Ebury Platform Team)
 ---
 
 # Jira Assistant Skill
 
-Automated Jira issue management with Atlassian MCP integration.
+Automated Jira issue management with Atlassian REST API integration.
 
 ## When to Use
 
@@ -36,7 +39,7 @@ Use this skill when the user asks to:
 ### Auto-Detection Strategy
 
 1. **Check workspace configuration**: Look for `.cursor/rules/jira-config.mdc`
-2. **If not found**: Use Atlassian MCP search to discover projects
+2. **If not found**: Use Jira REST API to discover projects
 3. **If still unclear**: Ask user to specify project key
 4. **Store config**: Remember for current conversation
 
@@ -56,15 +59,21 @@ Create `.cursor/rules/jira-config.mdc`:
 
 ### 1. Search Issues
 
-**Use Rovo Search first** for natural language queries:
-```
-Search: "Jira issues assigned to me in sprint"
-Search: "EPT tickets about GitOps"
+**Use JQL (Jira Query Language)** for queries:
+```jql
+# Find my issues
+project = EPT AND assignee = currentUser() AND status != Done
+
+# Find issues in sprint
+project = EPT AND sprint in openSprints()
+
+# Find recent issues
+project = EPT AND created >= -7d ORDER BY created DESC
 ```
 
-**Use JQL** for precise queries:
-```jql
-project = EPT AND status = "In Progress" AND assignee = currentUser()
+**REST API Endpoint**:
+```bash
+GET /rest/api/3/search?jql=<query>
 ```
 
 ### 2. Create Issues
@@ -78,8 +87,33 @@ When user requests a new ticket:
    - Description (detailed)
    - Priority (if specified)
    - Assignee (default: reporter)
-4. **Create issue** via MCP
+4. **Create issue** via REST API
 5. **Confirm** with issue key and URL
+
+**REST API Example**:
+```python
+import requests
+import os
+
+url = f"{os.getenv('JIRA_URL')}/rest/api/3/issue"
+auth = (os.getenv('JIRA_EMAIL'), os.getenv('JIRA_API_TOKEN'))
+
+payload = {
+    "fields": {
+        "project": {"key": "EPT"},
+        "summary": "Implement secrets in GitOps",
+        "description": {
+            "type": "doc",
+            "version": 1,
+            "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Details here"}]}]
+        },
+        "issuetype": {"name": "Task"}
+    }
+}
+
+response = requests.post(url, json=payload, auth=auth)
+issue_key = response.json()["key"]
+```
 
 **Example**:
 ```markdown
