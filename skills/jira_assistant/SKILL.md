@@ -1,240 +1,266 @@
 ---
 name: jira_assistant
-description: Manage Jira issues and tasks via Atlassian REST API - create, update, search, transition status, add comments, manage sprints. Auto-detects project configuration from workspace. Use when user says "create Jira ticket", "update sprint", "check Jira status", "transition issue", "search Jira", "add comment to ticket", "assign issue". Direct API integration without external dependencies. Do NOT use for Confluence pages (use confluence skill) or general project planning (use spec-driven skill).
+description: Manage Jira issues and tasks via MCP server - create, update, search, transition status, add comments. Auto-detects project configuration from workspace. Use when user says "create Jira ticket", "check Jira status", "search Jira", "add comment to ticket", "get issue details". MCP server integration with Jira Cloud REST API. Do NOT use for Confluence pages or general project planning.
 license: CC-BY-4.0
 metadata:
   author: Marcos Gomes
-  version: 1.0.0
+  version: 2.0.0
+  type: mcp-server
   requires:
+    - mcp (Python SDK 1.26.0+)
     - requests
     - python-dotenv
   api:
-    - Atlassian Jira REST API v3
+    - Atlassian Jira Cloud REST API v2/v3
+  mcp_server: server/mcp_server_jira.py
   projects:
     - EPT (Ebury Platform Team)
 ---
 
 # Jira Assistant Skill
 
-Automated Jira issue management with Atlassian REST API integration.
+MCP (Model Context Protocol) server for automated Jira issue management.
 
 ## When to Use
 
 Use this skill when the user asks to:
-- Search for Jira issues or tasks
-- Create new Jira issues (Task, Epic, Subtask, Bug)
-- Update existing issues (description, assignee, priority)
-- Transition issue status (To Do → In Progress → Done)
-- Add comments to issues
-- Manage sprint tasks
-- Query issues with specific criteria (JQL)
+- **Get issue details**: "Show me EPT-2030", "What's the status of EPT-1234"
+- **Search issues**: "Find my Jira tickets", "List EPT issues about GitOps"
+- **Create issues**: "Create a Jira task for X", "Open a bug about Y"
+- **Add comments**: "Comment on EPT-2030 that it's resolved"
+
+**Triggers**: "Jira", "ticket", "issue", "EPT-" (project prefix)
 
 **Do NOT use for:**
-- Confluence pages or documentation (use confluence-assistant)
-- General project planning without Jira (use spec-driven skill)
-- Creating technical specs (use spec-driven skill)
+- Confluence pages or documentation
+- General project planning without Jira integration
+- Creating technical specs (use docs/ or openspec/)
+
+## MCP Tools Available
+
+This skill provides 4 MCP tools via `server/mcp_server_jira.py`:
+
+### 1. jira_get_issue
+Get full details of a specific issue.
+
+**Input**: `{"key": "EPT-2030"}`  
+**Returns**: Summary, status, assignee, priority, description, link
+
+### 2. jira_search_issues
+Search issues using JQL (Jira Query Language).
+
+**Input**: `{"jql": "project = EPT AND status = Open", "max_results": 10}`  
+**Returns**: List of matching issues with key details
+
+### 3. jira_create_issue
+Create a new issue in Jira.
+
+**Input**: `{"project": "EPT", "summary": "...", "description": "...", "issue_type": "Task"}`  
+**Returns**: New issue key and link
+
+### 4. jira_add_comment
+Add a comment to an existing issue.
+
+**Input**: `{"key": "EPT-2030", "comment": "Issue resolved"}`  
+**Returns**: Confirmation message
 
 ## Configuration
 
 ### Auto-Detection Strategy
 
-1. **Check workspace configuration**: Look for `.cursor/rules/jira-config.mdc`
-2. **If not found**: Use Jira REST API to discover projects
-3. **If still unclear**: Ask user to specify project key
-4. **Store config**: Remember for current conversation
+1. **Check workspace context**: Look for project mentions in conversation
+2. **Default to EPT**: Ebury Platform Team (most common)
+3. **If unclear**: Ask user to specify project key
+4. **Remember**: Store project context for current conversation
 
-### Workspace Configuration (Optional)
+### Environment Setup
 
-Create `.cursor/rules/jira-config.mdc`:
-```markdown
-# Jira Configuration
+The MCP server requires these environment variables (configured in MCP client):
 
-**Project Key**: EPT
-**Project Name**: Ebury Platform Team
-**Board URL**: https://ebury.atlassian.net/jira/software/projects/EPT/boards/123
-**Default Issue Type**: Task
+```env
+JIRA_URL=https://fxsolutions.atlassian.net
+JIRA_EMAIL=user@ebury.com
+JIRA_API_TOKEN=<token>
 ```
 
-## Workflow
+## Usage Examples
 
-### 1. Search Issues
+### Example 1: Get Issue Details
 
-**Use JQL (Jira Query Language)** for queries:
+**User**: "Show me details of EPT-2030"
+
+**Agent Action**:
+1. Detect issue key: EPT-2030
+2. Call MCP tool: `jira_get_issue(key="EPT-2030")`
+3. Format response
+
+**Output**:
+```
+✅ EPT-2030: Timeout issue in Tree/JD integration
+📊 Status: Concluído
+⚡ Priority: Highest
+👤 Assignee: Andre Longo
+📅 Created: 2026-03-12
+🔗 https://fxsolutions.atlassian.net/browse/EPT-2030
+```
+
+### Example 2: Search Issues
+
+**User**: "Find open issues in project EPT"
+
+**Agent Action**:
+1. Build JQL: `project = EPT AND status != Done`
+2. Call MCP tool: `jira_search_issues(jql="...", max_results=10)`
+3. Format results
+
+**Output**:
+```
+Found 5 issues in EPT:
+
+1. EPT-1919: Improve Function Governance Clean
+   Status: Code Review | Assignee: Osório Santos
+
+2. EPT-1891: Migration Workloads MoneyFlows
+   Status: Code Review | Assignee: Felipe Nicodemos
+
+3. EPT-1829: Tree FX Web Portal - SSL
+   Status: Ready for Deployment | Assignee: Leonardo Santos
+```
+
+### Example 3: Create Issue
+
+**User**: "Create a task in EPT to implement feature X"
+
+**Agent Action**:
+1. Detect project: EPT
+2. Extract details: summary, description
+3. Call MCP tool: `jira_create_issue(project="EPT", summary="...", issue_type="Task")`
+
+**Output**:
+```
+✅ Task created: EPT-2099
+📝 Summary: Implement feature X
+🔗 https://fxsolutions.atlassian.net/browse/EPT-2099
+```
+
+### Example 4: Add Comment
+
+**User**: "Add comment to EPT-2030: Issue resolved after restart"
+
+**Agent Action**:
+1. Parse issue key: EPT-2030
+2. Extract comment text
+3. Call MCP tool: `jira_add_comment(key="EPT-2030", comment="...")`
+
+**Output**:
+```
+✅ Comment added to EPT-2030
+```
+## JQL (Jira Query Language) Examples
+
+When searching issues, use JQL syntax:
+
 ```jql
-# Find my issues
+# Find my assigned issues
 project = EPT AND assignee = currentUser() AND status != Done
 
-# Find issues in sprint
+# Find issues in current sprint
 project = EPT AND sprint in openSprints()
 
 # Find recent issues
 project = EPT AND created >= -7d ORDER BY created DESC
+
+# Find high priority bugs
+project = EPT AND type = Bug AND priority = High
+
+# Find issues by label
+project = EPT AND labels = "FinCore"
 ```
 
-**REST API Endpoint**:
-```bash
-GET /rest/api/3/search?jql=<query>
+## Best Practices
+
+### When Creating Issues
+
+1. **Be specific**: "Create task for implementing OAuth2" (not "create task")
+2. **Include context**: Mention if it's a bug, task, or epic
+3. **Provide details**: Description helps assign and prioritize
+
+### When Searching
+
+1. **Use JQL**: More powerful than keywords
+2. **Specify project**: Always include `project = EPT`
+3. **Order results**: Add `ORDER BY created DESC` for recent first
+
+### When Commenting
+
+1. **Be concise**: One clear sentence
+2. **Tag people**: Use @mentions if needed (handled by Jira)
+3. **Reference PRs**: Link to GitHub PRs when applicable
+
+## Common Patterns
+
+### Pattern 1: Check Issue Status
+```
+User: "What's the status of EPT-2030?"
+→ Use: jira_get_issue(key="EPT-2030")
 ```
 
-### 2. Create Issues
-
-When user requests a new ticket:
-
-1. **Detect project** (auto or ask)
-2. **Determine type**: Task, Epic, Bug, Subtask
-3. **Gather details**:
-   - Summary (1 sentence)
-   - Description (detailed)
-   - Priority (if specified)
-   - Assignee (default: reporter)
-4. **Create issue** via REST API
-5. **Confirm** with issue key and URL
-
-**REST API Example**:
-```python
-import requests
-import os
-
-url = f"{os.getenv('JIRA_URL')}/rest/api/3/issue"
-auth = (os.getenv('JIRA_EMAIL'), os.getenv('JIRA_API_TOKEN'))
-
-payload = {
-    "fields": {
-        "project": {"key": "EPT"},
-        "summary": "Implement secrets in GitOps",
-        "description": {
-            "type": "doc",
-            "version": 1,
-            "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Details here"}]}]
-        },
-        "issuetype": {"name": "Task"}
-    }
-}
-
-response = requests.post(url, json=payload, auth=auth)
-issue_key = response.json()["key"]
+### Pattern 2: Find My Work
+```
+User: "Show my open Jira tickets"
+→ Use: jira_search_issues(jql="project = EPT AND assignee = currentUser() AND status != Done")
 ```
 
-**Example**:
-```markdown
-User: "Create a Jira ticket for implementing secrets in GitOps"
-
-Agent:
-1. Detected project: EPT
-2. Creating Task...
-3. ✓ Created: EPT-1234
-   Summary: Implement secrets management in GitOps
-   URL: https://ebury.atlassian.net/browse/EPT-1234
+### Pattern 3: Create & Track
+```
+User: "Create task for implementing secrets in GitOps"
+→ Use: jira_create_issue(...)
+→ Save EPT-XXXX for tracking
 ```
 
-### 3. Update Issues
-
-**Update fields**:
-- Change assignee
-- Update description
-- Modify priority
-- Update labels/components
-
-**Example**:
+### Pattern 4: Update Progress
 ```
-User: "Update EPT-1234 assignee to marcos.gomes"
+User: "Add comment to EPT-2030 that implementation is complete"
+→ Use: jira_add_comment(key="EPT-2030", comment="Implementation complete")
 ```
 
-### 4. Transition Status
+## Troubleshooting
 
-**Common transitions**:
-- To Do → In Progress
-- In Progress → Code Review
-- Code Review → Done
-- Any → Blocked
+### Issue Not Found (404)
+- Verify issue key format: `PROJECT-NUMBER` (e.g., EPT-2030)
+- Check if issue exists in Jira web UI
+- Confirm user has access to the project
 
-**Example**:
-```
-User: "Move EPT-1234 to Done"
-```
+### Permission Denied (403)
+- User may not have access to project
+- API token may lack required permissions
+- Check Jira user permissions in admin panel
 
-### 5. Add Comments
+### Invalid JQL
+- Use Jira's query builder to validate syntax
+- Common mistake: missing quotes around values with spaces
+- Use `project = EPT` (not `project = "EPT"`)
 
-**When to comment**:
-- Status updates
-- Blockers identified
-- Additional context
-- Links to PRs/commits
+## Implementation Details
 
-**Example**:
-```
-User: "Add comment to EPT-1234: Implemented in PR #456"
-```
+**MCP Server**: `server/mcp_server_jira.py`  
+**Tests**: `tests/test_mcp_client.py`  
+**Specs**: `specs/jira-mcp-tools.md`  
 
-## Output Format
+**Full documentation**: See [README.md](README.md) for setup and architecture.
 
-Always provide structured output:
+## Related Skills
 
-**Search results**:
-```markdown
-Found 3 issues:
+- **kubernetes_debug**: Check if Jira-related services are running
+- **ssh_connect**: SSH into servers to check Jira integrations
+- **mysql_connect**: Query Jira database (if self-hosted)
 
-1. **EPT-1234** - Implement GitOps secrets
-   Status: In Progress | Assignee: Marcos Gomes
-   https://ebury.atlassian.net/browse/EPT-1234
+## Security Notes
 
-2. **EPT-1235** - Update Terraform modules
-   Status: To Do | Assignee: Unassigned
-   https://ebury.atlassian.net/browse/EPT-1235
-```
-
-**Issue created/updated**:
-```markdown
-✓ Created EPT-1234: Implement GitOps secrets
-  Status: To Do
-  Assignee: Marcos Gomes
-  Priority: High
-  URL: https://ebury.atlassian.net/browse/EPT-1234
-```
-
-## Common Commands
-
-### Search
-```
-- "Find my Jira tickets"
-- "Search EPT issues about GitOps"
-- "Show tickets in current sprint"
-```
-
-### Create
-```
-- "Create Jira ticket for [description]"
-- "New bug: [description]"
-- "Create epic for [feature]"
-```
-
-### Update
-```
-- "Update EPT-1234 assignee to [user]"
-- "Change priority of EPT-1234 to High"
-- "Add label 'gitops' to EPT-1234"
-```
-
-### Transition
-```
-- "Move EPT-1234 to In Progress"
-- "Mark EPT-1234 as Done"
-- "Block EPT-1234"
-```
-
-### Comment
-```
-- "Add comment to EPT-1234: [text]"
-- "Comment on EPT-1234 with PR link"
-```
-
-## Error Handling
-
-**Issue not found**:
-```
-❌ Issue EPT-9999 not found
-Suggestion: Search for similar issues or verify issue key
-```
+- ✅ API tokens stored in environment variables only
+- ✅ Never log or expose tokens in responses
+- ✅ Use HTTPS for all Jira API calls
+- ✅ Follow principle of least privilege for API permissions
 **Permission denied**:
 ```
 ❌ Cannot update EPT-1234: Insufficient permissions
