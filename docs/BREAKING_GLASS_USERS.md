@@ -62,62 +62,34 @@ Crie o ticket, você receberá uma notificacão via email:
 O acesso é concedido a pessoa que está criando o JIRA ISSUE, informe o nome do seu gerente também.
 ![alt text](image.png)
 
+Peca para o seu gerente aprovar:
+![alt text](image-2.png)
+
+Após o acesso ser concedido, você receberá uma mensagem de confirmacao via email, que é enviado para o Solicitante, o Aprovador e o Time de Plataforma.
+![alt text](image-3.png)
 
 
-
-
-### 2. Aplicação Automática (Terraform Apply)
+### 2. Informacoes gerais
 
 Ao concluir com sucesso, o workflow `ebb-terraform-apply-trigger` é acionado automaticamente:
 
-1. Detecta que o workflow de breaking glass foi concluído com sucesso
-2. Executa `terraform apply` no ambiente de produção
-3. As permissões IAM são aplicadas no projeto GCP correspondente
-4. Um e-mail de confirmação é enviado ao solicitante
-
-![Terraform apply sendo executado após breaking glass](BREAKING_GLASS/image-3.png)
-
-### 3. Expiração e Limpeza (Automática)
-
-Um job agendado (`cleanup_iam_conditions.py`) roda diariamente às **08:00 GMT-3** e:
-
-1. Lê os arquivos `.tfvars` de todos os domínios e ambientes
-2. Verifica o timestamp de expiração de cada entrada em `breaking_glass`
-3. Remove as entradas expiradas
-4. Faz commit e push automático na `main`
-5. O Terraform Apply subsequente remove as permissões do GCP
-
-![Limpeza automática de permissões expiradas](BREAKING_GLASS/image-4.png)
-
-> As permissões temporárias são controladas por IAM Conditions do GCP. Mesmo antes da limpeza automática no `.tfvars`, o próprio GCP já nega o acesso após o timestamp de expiração.
-
+1. Caso receba algum email de falha, favor entre em contato com o time de plataforma.
+2. A role de breaking glass no ambiente de producao é um clone da role de dev que o seu time possue, caso precise fazer algo que a sua role convencional em dev não faca, isso também não estará funcionando em producao.
+3. As roles tem uma validade sempre de 8 horas após o email de confirmacao ser enviado.
+4. Há uma automacao que roda de 4 em 4 horas, verificando se há permissões expiradas e fazendo o remove da permissão com acessos privilegiados.
 ---
 
 ## Domínios Disponíveis
 
 | Domínio | Projeto GCP (Produção) |
 |---------|----------------------|
-| `ebb-platform` | `ebb-platform-prod` |
 | `ebb-shared-services` | `ebb-shared-services-prod` |
-| `ebb-banking` | `ebb-banking-prod` |
+| `ebb-moneyflows` | `ebb-moneyflows-prod` |
 | `ebb-ebury-connect` | `ebb-ebury-connect-prod` |
 | `ebb-ebury-connect-pci` | `ebb-ebury-connect-pci-prod` |
 | `ebb-fx-engine` | `ebb-fx-engine-prod` |
 | `ebb-client-journey` | `ebb-client-journey-prod` |
 | `ebb-bigdata` | `ebb-bigdata-prod` |
-| `ebb-money-flows` | `ebb-money-flows-prod` |
-| `ebb-network-infra` | `ebb-network-infra-prod` |
-
----
-
-## Notificações por E-mail
-
-Após a execução do Terraform Apply, o sistema envia um e-mail (via SendGrid) com o resultado:
-
-- **Sucesso** (`✅ Breaking Glass Access Granted`): contém detalhes do acesso concedido, incluindo projeto, usuário, aprovador e horário de expiração
-- **Falha** (`❌ Breaking Glass Request Failed`): informa que o acesso **não** foi concedido e inclui o output do Terraform para diagnóstico
-
-![Exemplo de notificação por e-mail](BREAKING_GLASS/image-5.png)
 
 ---
 
@@ -152,14 +124,6 @@ Após a execução do Terraform Apply, o sistema envia um e-mail (via SendGrid) 
 │  └──────────────────────┘                                │
 └─────────────────────────────────────────────────────────┘
 ```
-
-### Repositórios Envolvidos
-
-| Repositório | Função |
-|-------------|--------|
-| `ebb-iac-iam` | Contém os `.tfvars` com IAM roles e o workflow de breaking glass |
-| `ebb-terraform-cicd-workflows` | Templates reutilizáveis de pipelines (breaking glass, apply, cleanup) |
-| `ebb-terraform-gcp-iam` | Módulo Terraform que processa a variável `breaking_glass` |
 
 ---
 
