@@ -52,7 +52,7 @@ O **Breaking Glass** é um processo automatizado de acesso emergencial a ambient
 
 Acesse o repositório `ebb-iac-iam` no GitHub e navegue até **Actions** > **ebb-terraform-breaking-glass-pipeline**.
 
-![Tela de dispatch do workflow](BREAKING_GLASS/image.png)
+![Tela de dispatch do workflow](BREAKING_GLASS/image-5.png)
 
 Clique em **"Run workflow"** e preencha os campos:
 
