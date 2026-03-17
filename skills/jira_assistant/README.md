@@ -1,220 +1,158 @@
-# Jira Assistant Skill
+# Jira MCP Server Skill 🎫
 
-**Version**: 1.0.0  
-**Author**: Marcos Gomes  
-**License**: CC-BY-4.0
+**Servidor MCP (Model Context Protocol) para integração com Jira Cloud**, permitindo que AI assistants busquem, criem e gerenciem issues através de linguagem natural.
 
-## Overview
+---
 
-Direct REST API integration with Atlassian Jira - no external MCP servers required.
+## 📁 Estrutura
 
-## Features
-
-- ✓ Search issues with JQL
-- ✓ Create issues (Task, Bug, Epic, Subtask)
-- ✓ Update issue fields
-- ✓ Transition issue status
-- ✓ Add comments
-- ✓ Get issue details
-
-## Installation
-
-```bash
-cd skills/jira_assistant
-pip install -r requirements.txt
-cp .env.example .env
-# Edit .env with your credentials
+```
+skills/jira_assistant/
+├── SKILL.md                    # 🤖 Instruções para AI agents
+├── README.md                   # 📖 Esta documentação
+├── requirements.txt            # 📦 Dependências Python
+├── .env.example               # 🔐 Template de credenciais
+├── .env                       # 🔐 Credenciais (gitignored)
+├── server/                    # 💻 Servidor MCP
+│   └── mcp_server_jira.py
+├── tests/                     # ✅ Testes
+│   └── test_mcp_client.py
+└── specs/                     # 📋 OpenSpec
+    └── jira-mcp-tools.md
 ```
 
-## Configuration
+---
 
-### Get API Token
+## 🚀 Quick Start
 
-1. Go to https://id.atlassian.com/manage-profile/security/api-tokens
-2. Click "Create API token"
-3. Copy token to `.env` file
+### 1. Instalar Dependências
 
-### Environment Variables
+```bash
+pip install mcp requests python-dotenv
+```
+
+### 2. Configurar Credenciais
+
+Copie `.env.example` para `.env`:
 
 ```env
-JIRA_URL=https://ebury.atlassian.net
-JIRA_EMAIL=your.email@ebury.com
-JIRA_API_TOKEN=your_token_here
-JIRA_PROJECT_KEY=EPT
+JIRA_URL=https://fxsolutions.atlassian.net
+JIRA_EMAIL=seu.email@ebury.com
+JIRA_API_TOKEN=seu_token_aqui
 ```
 
-## Usage
+**Obter API Token**: https://id.atlassian.com/manage-profile/security/api-tokens
 
-### With AI Agent
-
-Activated automatically when you say:
-- "Create a Jira ticket for..."
-- "Search Jira issues about..."
-- "Update EPT-123 status to Done"
-- "Add comment to EPT-456"
-
-### Standalone
+### 3. Testar
 
 ```bash
-python main.py
+cd tests/
+python3 test_mcp_client.py
 ```
 
-### As Library
+### 4. Integrar com Cursor
 
-```python
-from main import JiraClient
+`~/.cursor/mcp.json`:
 
-client = JiraClient()
-
-# Search issues
-issues = client.search_issues("project = EPT AND assignee = currentUser()")
-
-# Create issue
-issue = client.create_issue(
-    summary="Implement feature X",
-    description="Detailed description here",
-    issue_type="Task",
-    priority="High"
-)
-print(f"Created: {issue['key']}")
-
-# Transition
-client.transition_issue("EPT-123", "Done")
-
-# Add comment
-client.add_comment("EPT-123", "Implementation completed")
+```json
+{
+  "mcpServers": {
+    "jira": {
+      "command": "python3",
+      "args": ["/caminho/para/server/mcp_server_jira.py"],
+      "env": {
+        "JIRA_URL": "https://fxsolutions.atlassian.net",
+        "JIRA_EMAIL": "email@ebury.com",
+        "JIRA_API_TOKEN": "token"
+      }
+    }
+  }
+}
 ```
 
-## API Examples
+---
 
-### Search with JQL
+## 🛠️ Ferramentas
 
-```python
-# My open issues
-jql = "project = EPT AND assignee = currentUser() AND status != Done"
-issues = client.search_issues(jql)
+| Tool | Descrição |
+|------|-----------|
+| `jira_get_issue` | Buscar detalhes de issue específica |
+| `jira_search_issues` | Buscar issues com JQL |
+| `jira_create_issue` | Criar nova issue |
+| `jira_add_comment` | Adicionar comentário |
 
-# Recent issues
-jql = "project = EPT AND created >= -7d ORDER BY created DESC"
-issues = client.search_issues(jql, max_results=10)
+---
 
-# Issues in sprint
-jql = "project = EPT AND sprint in openSprints()"
-issues = client.search_issues(jql)
+## 📋 OpenSpec: Como Se Relaciona?
+
+### O Que É OpenSpec?
+
+**OpenSpec** é uma metodologia de **Spec-Driven Development** usada neste repositório para manter especificações de comportamento dos sistemas.
+
+### Relação com Esta Skill
+
+```
+Portfolio OpenSpec (nível domínio)
+openspec/specs/ebb-client-journey.md
+openspec/specs/ebb-money-flows.md
+           ↓ descreve business behavior
+Skills (nível automação)
+skills/jira_assistant/
+skills/kubernetes_debug/
+           ↓ cada skill tem seu spec
+Tool Specs (nível ferramenta MCP)
+skills/jira_assistant/specs/jira-mcp-tools.md
+  ↳ Comportamento esperado (BDD-style)
+  ↳ Input/output schemas
+  ↳ Casos de erro
 ```
 
-### Create Issue
+### Exemplo: OpenSpec para Jira MCP
 
-```python
-issue = client.create_issue(
-    summary="Fix authentication bug",
-    description="Users unable to log in with SSO",
-    issue_type="Bug",
-    priority="High"
-)
-# Returns: {"key": "EPT-789", "id": "12345", "self": "https://..."}
+**[specs/jira-mcp-tools.md](specs/jira-mcp-tools.md)**:
+
+```gherkin
+Scenario: Buscar issue existente
+  GIVEN issue EPT-2030 exists in Jira
+  WHEN tool jira_get_issue is called with key="EPT-2030"
+  THEN response includes all fields
+  AND link is "https://fxsolutions.atlassian.net/browse/EPT-2030"
 ```
 
-### Update Issue
+**Benefícios**:
+- ✅ Comportamento determinístico
+- ✅ Documentação viva
+- ✅ Evolução controlada (ADDED/MODIFIED/REMOVED)
+- ✅ Onboarding rápido
 
-```python
-client.update_issue("EPT-123", {
-    "assignee": {"accountId": "123456:abcdef"},
-    "priority": {"name": "Critical"}
-})
+---
+
+## 🧪 Testes
+
+```bash
+cd tests/
+python3 test_mcp_client.py
 ```
 
-### Transition Status
+**Fluxo TDD com OpenSpec**:
 
-```python
-# Available transitions: To Do → In Progress → Done
-client.transition_issue("EPT-123", "In Progress")
-client.transition_issue("EPT-123", "Done")
-```
+1. **Especificar** em `specs/jira-mcp-tools.md`
+2. **Testar** em `tests/test_mcp_client.py`
+3. **Implementar** em `server/mcp_server_jira.py`
 
-## Common JQL Queries
+---
 
-```jql
-# My work
-assignee = currentUser() AND status != Done
+## 🔧 Adicionar Nova Ferramenta
 
-# Team work
-project = EPT AND status = "In Progress"
+1. Especificar em `specs/jira-mcp-tools.md`
+2. Registrar em `server/mcp_server_jira.py` (`@server.list_tools()`)
+3. Implementar handler (`_new_tool()`)
+4. Testar em `tests/test_mcp_client.py`
 
-# Recent bugs
-project = EPT AND issuetype = Bug AND created >= -7d
+---
 
-# Blocked issues
-project = EPT AND status = Blocked
+## 📚 Referências
 
-# High priority
-project = EPT AND priority = High ORDER BY created DESC
-
-# Sprint issues
-project = EPT AND sprint in openSprints()
-
-# Unassigned
-project = EPT AND assignee is EMPTY
-
-# Search by text
-project = EPT AND text ~ "authentication"
-```
-
-## Error Handling
-
-### Authentication Failed (401)
-```
-❌ API error: 401 Unauthorized
-Authentication failed. Check JIRA_EMAIL and JIRA_API_TOKEN
-```
-
-**Solution**: Verify credentials in `.env`, generate new API token if needed.
-
-### Project Not Found (404)
-```
-❌ API error: 404 Not Found
-Project 'EPT' not found or no access
-```
-
-**Solution**: Verify project key, check access permissions in Jira.
-
-### Invalid Transition
-```
-ValueError: Transition 'Done' not found. Available: ['To Do', 'In Progress', 'Complete']
-```
-
-**Solution**: Use exact transition name from available options.
-
-## Security
-
-- **Never commit `.env`** - Contains API token
-- **Token permissions**: Token inherits your Jira permissions
-- **Rotate tokens**: Regenerate periodically
-- **Use workspace rules**: Store project config in `.cursor/rules/jira-config.mdc`
-
-## Documentation
-
-- [SKILL.md](SKILL.md) - Agent instructions
-- [Jira REST API v3](https://developer.atlassian.com/cloud/jira/platform/rest/v3/)
-- [JQL Reference](https://support.atlassian.com/jira-service-management-cloud/docs/use-advanced-search-with-jira-query-language-jql/)
-
-## Differences from MCP Version
-
-This skill uses **direct REST API** instead of external MCP servers:
-
-| Aspect | MCP Version | This Version |
-|--------|-------------|--------------|
-| Dependencies | Atlassian MCP Server | requests library |
-| Setup | MCP server config | Just .env file |
-| Authentication | MCP handles | Direct API token |
-| Search | Rovo Search | JQL queries |
-| Complexity | Lower (abstracted) | Higher (explicit) |
-| Control | Limited | Full API access |
-
-## Contributing
-
-See [../../docs/CONTRIBUTING.md](../../docs/CONTRIBUTING.md)
-
-## License
-
-CC-BY-4.0 - See [LICENSE](../../LICENSE)
+- **OpenSpec**: [/openspec/README.md](/openspec/README.md)
+- **MCP Spec**: https://spec.modelcontextprotocol.io/
+- **Jira API**: https://developer.atlassian.com/cloud/jira/platform/rest/v3/
