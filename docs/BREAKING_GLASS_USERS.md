@@ -47,31 +47,17 @@ O **Breaking Glass** é um processo automatizado de acesso emergencial a ambient
 
 ### 1. Solicitação de Acesso (Manual)
 
-Acesse o board do jira e crie o ticket(Access Requests).
+Acesse o board do jira e crie o ticket -> Access Requests.
 ![Tela de dispatch do workflow](BREAKING_GLASS/image.png)
 
-Acesse EBB Access Request.
+Acesse -> EBB Access Request.
 ![Formulário de inputs preenchido](BREAKING_GLASS/image-1.png)
 
-Acesse EBB Breaking Glass.
+Acesse -> EBB Breaking Glass.
 ![Pipeline de breaking glass executando](BREAKING_GLASS/image-2.png)
 
-A entrada adicionada no `.tfvars` tem o seguinte formato:
-
-```hcl
-breaking_glass = [
-  {
-    project = "ebb-banking-prod"
-    role    = "projects/ebb-banking-prod/roles/ebb_breaking_glass_iam_role"
-    member  = "user:marcos.gomes@ebury.com"
-    condition = {
-      title       = "Emergency Access"
-      description = "Temporary escalation"
-      expression  = "request.time < timestamp(\"2026-03-17T22:38:11.075972+00:00\")"
-    }
-  }
-]
-```
+Crie o ticket, você receberá uma notificacão via email.
+![alt text](image.png)
 
 ### 2. Aplicação Automática (Terraform Apply)
 
