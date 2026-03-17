@@ -51,7 +51,7 @@ Acesse o board do Jira e crie o ticket em **Access Requests**.
 ![Tela de Access Requests no Jira](BREAKING_GLASS_USERS/image.png)
 
 Acesse **EBB Access Request**.
-![Tela de EBB Access Request](BREAKING_GLASS_USERS/image-1.png)
+![Tela de EBB Access Request](BREAKING_GLASS_USERS/image-7.png)
 
 Acesse **EBB Breaking Glass**.
 ![Tela de EBB Breaking Glass](BREAKING_GLASS_USERS/image-2.png)
