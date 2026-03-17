@@ -291,7 +291,7 @@ import paramiko
 client = paramiko.SSHClient()
 client.load_system_host_keys()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-client.connect('10.23.129.3', username='marcos', password='password')
+client.connect('10.23.129.3', username='marcos', password='<your_password>')
 
 # Upload file
 sftp = client.open_sftp()
