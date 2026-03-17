@@ -32,14 +32,14 @@ O **Breaking Glass** é um processo automatizado de acesso emergencial a ambient
 - Incidentes em produção que necessitam de acesso direto a recursos GCP
 - Debugging emergencial de aplicações em ambiente produtivo
 
-> **Importante**: Este processo é exclusivo para cenários de emergência. Para acessos recorrentes, registre um ticket para o time de EBB Plataforma solicitando a elevação dos acessos`.
+> **Importante**: Este processo é exclusivo para cenários de emergência. Para acessos recorrentes, registre um ticket para o time de EBB Plataforma solicitando a elevação dos acessos.
 
 ---
 
 ## Pré-requisitos
 
-1. Criar jira ticket no board https://eburycore.support.ebury.com/servicedesk/customer/portal/5/group/807
-4. E-mail corporativo `@ebury.com` do usuário que precisa do acesso
+1. Criar um ticket Jira no board: https://eburycore.support.ebury.com/servicedesk/customer/portal/5/group/807
+2. E-mail corporativo `@ebury.com` do usuário que precisa do acesso
 
 ---
 
@@ -47,36 +47,34 @@ O **Breaking Glass** é um processo automatizado de acesso emergencial a ambient
 
 ### 1. Solicitação de Acesso (Manual)
 
-Acesse o board do jira e crie o ticket -> Access Requests.
-![Tela de dispatch do workflow](BREAKING_GLASS/image.png)
+Acesse o board do Jira e crie o ticket em **Access Requests**.
+![Tela de Access Requests no Jira](BREAKING_GLASS_USERS/image.png)
 
-Acesse -> EBB Access Request.
-![Formulário de inputs preenchido](BREAKING_GLASS/image-1.png)
+Acesse **EBB Access Request**.
+![Tela de EBB Access Request](BREAKING_GLASS_USERS/image-1.png)
 
-Acesse -> EBB Breaking Glass.
-![Pipeline de breaking glass executando](BREAKING_GLASS/image-2.png)
+Acesse **EBB Breaking Glass**.
+![Tela de EBB Breaking Glass](BREAKING_GLASS_USERS/image-2.png)
 
-Crie o ticket, você receberá uma notificacão via email:
-![alt text](BREAKING_GLASS/image-6.png)
+Crie o ticket. Você receberá uma notificação via e-mail:
+![Notificação de ticket criado](BREAKING_GLASS_USERS/image-6.png)
 
-O acesso é concedido a pessoa que está criando o JIRA ISSUE, informe o nome do seu gerente também.
-![alt text](image.png)
+O acesso é concedido à pessoa que está criando a issue no Jira. Informe o nome do seu gerente também.
+![Formulário de solicitação de acesso](BREAKING_GLASS_USERS/image-3.png)
 
-Peca para o seu gerente aprovar:
-![alt text](image-2.png)
+Peça para o seu gerente aprovar:
+![Tela de aprovação do gerente](BREAKING_GLASS_USERS/image-2.png)
 
-Após o acesso ser concedido, você receberá uma mensagem de confirmacao via email, que é enviado para o Solicitante, o Aprovador e o Time de Plataforma.
-![alt text](image-3.png)
+Após o acesso ser concedido, você receberá uma mensagem de confirmação via e-mail, que é enviada para o Solicitante, o Aprovador e o Time de Plataforma.
+![E-mail de confirmação de acesso](BREAKING_GLASS_USERS/image-3.png)
 
 
-### 2. Informacoes gerais
+### 2. Informações Gerais
 
-Ao concluir com sucesso, o workflow `ebb-terraform-apply-trigger` é acionado automaticamente:
-
-1. Caso receba algum email de falha, favor entre em contato com o time de plataforma.
-2. A role de breaking glass no ambiente de producao é um clone da role de dev que o seu time possue, caso precise fazer algo que a sua role convencional em dev não faca, isso também não estará funcionando em producao.
-3. As roles tem uma validade sempre de 8 horas após o email de confirmacao ser enviado.
-4. Há uma automacao que roda de 4 em 4 horas, verificando se há permissões expiradas e fazendo o remove da permissão com acessos privilegiados.
+1. Caso receba algum e-mail de falha, entre em contato com o time de plataforma.
+2. A role de Breaking Glass no ambiente de produção é um clone da role de dev que o seu time possui. Caso precise fazer algo que a sua role convencional em dev não faça, isso também não estará funcionando em produção.
+3. As roles têm uma validade de 8 horas após o e-mail de confirmação ser enviado.
+4. Há uma automação que roda de 4 em 4 horas, verificando se há permissões expiradas e fazendo a remoção das permissões com acessos privilegiados.
 ---
 
 ## Domínios Disponíveis
@@ -84,7 +82,7 @@ Ao concluir com sucesso, o workflow `ebb-terraform-apply-trigger` é acionado au
 | Domínio | Projeto GCP (Produção) |
 |---------|----------------------|
 | `ebb-shared-services` | `ebb-shared-services-prod` |
-| `ebb-moneyflows` | `ebb-moneyflows-prod` |
+| `ebb-money-flows` | `ebb-money-flows-prod` |
 | `ebb-ebury-connect` | `ebb-ebury-connect-prod` |
 | `ebb-ebury-connect-pci` | `ebb-ebury-connect-pci-prod` |
 | `ebb-fx-engine` | `ebb-fx-engine-prod` |
