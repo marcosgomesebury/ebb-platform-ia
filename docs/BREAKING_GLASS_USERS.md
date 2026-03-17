@@ -57,7 +57,7 @@ Acesse **EBB Breaking Glass**.
 ![Tela de EBB Breaking Glass](BREAKING_GLASS_USERS/image-2.png)
 
 Crie o ticket. Você receberá uma notificação via e-mail:
-![Notificação de ticket criado](BREAKING_GLASS_USERS/image-6.png)
+![Notificação de ticket criado](BREAKING_GLASS_USERS/image.png)
 
 O acesso é concedido à pessoa que está criando a issue no Jira. Informe o nome do seu gerente também.
 ![Formulário de solicitação de acesso](BREAKING_GLASS_USERS/image-3.png)
