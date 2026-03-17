@@ -57,7 +57,7 @@ Acesse -> EBB Breaking Glass.
 ![Pipeline de breaking glass executando](BREAKING_GLASS/image-2.png)
 
 Crie o ticket, você receberá uma notificacão via email.
-![alt text](image.png)
+![alt text](BREAKING_GLASS/image-6.png)
 
 ### 2. Aplicação Automática (Terraform Apply)
 
