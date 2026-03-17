@@ -54,7 +54,7 @@ Acesse **EBB Access Request**.
 ![Tela de EBB Access Request](BREAKING_GLASS_USERS/image-7.png)
 
 Acesse **EBB Breaking Glass**.
-![Tela de EBB Breaking Glass](BREAKING_GLASS_USERS/image-2.png)
+![Tela de EBB Breaking Glass](BREAKING_GLASS_USERS/image-8.png)
 
 Crie o ticket. Você receberá uma notificação via e-mail:
 ![Notificação de ticket criado](BREAKING_GLASS_USERS/image.png)
