@@ -47,12 +47,13 @@ O **Breaking Glass** é um processo automatizado de acesso emergencial a ambient
 
 ### 1. Solicitação de Acesso (Manual)
 
-Acesse o board do jira e crie o ticket.
-
+Acesse o board do jira e crie o ticket(Access Requests).
 ![Tela de dispatch do workflow](BREAKING_GLASS/image.png)
 
+Acesse EBB Access Request.
 ![Formulário de inputs preenchido](BREAKING_GLASS/image-1.png)
 
+Acesse EBB Breaking Glass.
 ![Pipeline de breaking glass executando](BREAKING_GLASS/image-2.png)
 
 A entrada adicionada no `.tfvars` tem o seguinte formato:
