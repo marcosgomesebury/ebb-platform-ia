@@ -56,8 +56,17 @@ Acesse -> EBB Access Request.
 Acesse -> EBB Breaking Glass.
 ![Pipeline de breaking glass executando](BREAKING_GLASS/image-2.png)
 
-Crie o ticket, você receberá uma notificacão via email.
+Crie o ticket, você receberá uma notificacão via email:
+Adicione os campos:
 ![alt text](BREAKING_GLASS/image-6.png)
+
+Notificacão via email.
+Solicitante(que o acesso será concedido), será sempre a pessoa que está criando a solicitacão de Breaking Glass.
+![alt text](image.png)
+
+![alt text](image-1.png)
+
+
 
 ### 2. Aplicação Automática (Terraform Apply)
 
