@@ -1,7 +1,8 @@
 # Delta Spec: Fix wp-portal-api Workload Identity Authentication
 
-**Status**: In Progress  
+**Status**: Completed  
 **Date**: 2026-03-18  
+**Completed**: 2026-03-19  
 **Ticket**: EPT-1890  
 **Domains**: ebb-ebury-connect, ebb-platform (IAC)
 

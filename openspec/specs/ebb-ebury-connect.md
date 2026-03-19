@@ -1,7 +1,7 @@
 # Domain Specification: ebb-ebury-connect
 
 **Status**: Active  
-**Last Updated**: 2026-03-16  
+**Last Updated**: 2026-03-19  
 **Repository**: `/home/marcosgomes/Projects/Ebury-Brazil/ebb-ebury-connect/`
 
 ---
@@ -47,6 +47,12 @@ Todos usam **Kustomize** com estrutura base + overlays (ebb-dev, staging-platfor
 4. **ebb-wp-core-tests** - Core payment tests (não tem suffix -gitops)
 
 **Estrutura padrão**: Base + overlays (ebb-dev, staging-platform, ebb-prd).
+
+**Missing from listing (gitops not in workspace)**:
+14. **ebb-wp-portal-api-gitops** - Portal API (file upload, checkout registration)
+    - Repo: `git@github.com:Ebury-Brazil/ebb-wp-portal-api-gitops.git`
+    - Namespace: `portal` (all environments)
+    - Workload Identity: KSA `ebb-wp-portal-api` → GSA `ebb-wp-portal-api@ebb-ebury-connect-{env}.iam.gserviceaccount.com`
 
 ### Integration Patterns
 
@@ -102,6 +108,15 @@ Ebury Brazil Services ↔ ebb-ebury-connect ↔ Global Ebury Platform
 - **Confidential** - Customer PII, financial data
 - **Encryption** - TLS for transit, encryption at rest
 - **Access Control** - Strict IAM, audit logging
+
+### Workload Identity
+Services authenticate to GCP via Workload Identity (not legacy GCE metadata server).
+
+**Pattern**: KSA (annotation) → WI IAM binding (`namespace/ksa`) → GSA (IAM roles on resources)
+
+| Service | Namespace | KSA | GSA |
+|---|---|---|---|
+| wp-portal-api | `portal` | `ebb-wp-portal-api` | `ebb-wp-portal-api@ebb-ebury-connect-{env}` |
 
 ### Compliance
 - Cross-border data transfer agreements
