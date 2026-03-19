@@ -1,0 +1,39 @@
+# Rule: GCP No Resource Deletion
+
+- **Nome da Regra:** gcp-no-resource-deletion
+- **Descrição:** Never run any Google Cloud (gcloud, gsutil, bq) command that deletes or destroys resources. This includes direct deletion, purging, and any destructive operation on any GCP resource type.
+- **Condições de disparo:**
+  - Ao executar qualquer comando gcloud, gsutil, bq
+  - Ao executar qualquer comando terraform/terragrunt destroy
+  - Ao sugerir comandos GCP ao usuário
+- **Ações automáticas:**
+  - Verificar se o comando é destrutivo antes de executar
+  - Se for um comando de deleção, recusar a execução imediatamente
+  - Alertar o usuário que comandos de deleção de recursos GCP são proibidos
+- **Comandos proibidos (gcloud):**
+  - `gcloud * delete`
+  - `gcloud * destroy`
+  - `gcloud * remove-iam-policy-binding` (remove permissões)
+  - `gcloud * purge`
+  - `gcloud projects delete`
+  - `gcloud compute instances delete`
+  - `gcloud container clusters delete`
+  - `gcloud sql instances delete`
+  - `gcloud storage rm`
+  - `gcloud secrets delete`
+  - `gcloud pubsub topics delete`
+  - `gcloud pubsub subscriptions delete`
+  - `gcloud iam service-accounts delete`
+  - `gcloud functions delete`
+  - `gcloud run services delete`
+- **Comandos proibidos (gsutil):**
+  - `gsutil rm`
+  - `gsutil rb` (remove bucket)
+- **Comandos proibidos (bq):**
+  - `bq rm`
+  - `bq remove`
+- **Comandos proibidos (terraform/terragrunt):**
+  - `terraform destroy`
+  - `terragrunt destroy`
+  - `terragrunt run-all destroy`
+- **Exceções:** Nenhuma. Se for necessário deletar um recurso, o usuário deve fazê-lo manualmente.
