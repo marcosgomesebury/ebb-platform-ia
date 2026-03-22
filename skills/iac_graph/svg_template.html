@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Terragrunt Dependency Graph</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #11111b; color: #cdd6f4; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+header { background: #181825; padding: 10px 18px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #313244; flex-shrink: 0; }
+header h1 { font-size: 14px; font-weight: 700; color: #cba6f7; white-space: nowrap; letter-spacing: 0.2px; }
+header .sep { color: #313244; font-size: 18px; }
+header .breadcrumb { font-size: 11px; color: #6c7086; display: flex; align-items: center; gap: 6px; }
+header .breadcrumb span { color: #a6adc8; }
+header .spacer { flex: 1; }
+button { background: #1e1e2e; color: #cdd6f4; border: 1px solid #313244; padding: 5px 12px; border-radius: 8px; cursor: pointer; font-size: 11px; transition: all 0.15s; }
+button:hover { background: #313244; border-color: #45475a; }
+
+#statsbar { background: #11111b; padding: 5px 16px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #313244; flex-shrink: 0; flex-wrap: wrap; }
+.stat-chip { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #a6adc8; cursor: pointer; padding: 2px 8px; border-radius: 20px; border: 1px solid transparent; transition: all 0.15s; user-select: none; }
+.stat-chip:hover { border-color: #45475a; }
+.stat-chip.dimmed { opacity: 0.3; }
+.stat-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+.stat-num { font-weight: 700; color: #cdd6f4; margin-left: 3px; }
+
+#body { display: flex; flex: 1; overflow: hidden; }
+
+#sidebar { width: 240px; background: #181825; border-right: 1px solid #313244; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+#sidebar-header { padding: 8px 10px; border-bottom: 1px solid #313244; }
+#sidebar-search { width: 100%; background: #313244; color: #cdd6f4; border: 1px solid #45475a; padding: 5px 8px; border-radius: 6px; font-size: 12px; outline: none; }
+#sidebar-search::placeholder { color: #6c7086; }
+#sidebar-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+#sidebar-list::-webkit-scrollbar { width: 4px; }
+#sidebar-list::-webkit-scrollbar-thumb { background: #45475a; border-radius: 2px; }
+.group-label { padding: 5px 10px 2px; font-size: 10px; color: #6c7086; text-transform: uppercase; letter-spacing: 0.6px; display: flex; align-items: center; gap: 5px; }
+.group-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.node-item { padding: 4px 10px 4px 18px; font-size: 11px; color: #a6adc8; cursor: pointer; border-left: 2px solid transparent; word-break: break-all; line-height: 1.4; }
+.node-item:hover { background: #1e1e2e; color: #cdd6f4; }
+.node-item.active { background: #313244; color: #cba6f7; border-left-color: #cba6f7; }
+.sidebar-count { font-size: 10px; color: #45475a; margin-left: auto; }
+
+#canvas-wrap { flex: 1; overflow: hidden; position: relative; cursor: grab; background: #1e1e2e; }
+#canvas-wrap:active { cursor: grabbing; }
+#svg-container { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+#svg-container svg { display: block; }
+#svg-container svg .node polygon,
+#svg-container svg .node ellipse,
+#svg-container svg .node rect { stroke: #45475a; cursor: pointer; transition: opacity 0.15s; }
+#svg-container svg .node text { pointer-events: none; }
+#svg-container svg .edge path,
+#svg-container svg .edge polygon { transition: opacity 0.15s; }
+/* ── Focus mode: hide completely ── */
+.node-hidden { display: none !important; }
+.edge-hidden { display: none !important; }
+/* ── Within focus: semantic coloring ── */
+.node-focus polygon, .node-focus ellipse, .node-focus rect { stroke: #FFD600 !important; stroke-width: 3px !important; filter: drop-shadow(0 0 6px #FFD60088); }
+.node-up polygon, .node-up ellipse, .node-up rect   { stroke: #f38ba8 !important; stroke-width: 2px !important; }
+.node-down polygon, .node-down ellipse, .node-down rect { stroke: #89dceb !important; stroke-width: 2px !important; }
+.node-hop2 polygon, .node-hop2 ellipse, .node-hop2 rect { stroke: #6c7086 !important; stroke-width: 1.5px !important; opacity: 0.7; }
+.edge-up path   { stroke: #f38ba8 !important; stroke-width: 2px !important; }
+.edge-down path { stroke: #89dceb !important; stroke-width: 2px !important; }
+.edge-hop2 path { stroke: #45475a !important; }
+
+/* ── Focus banner ── */
+#focus-bar { display: none; background: #1e1e2e; border-bottom: 1px solid #313244; padding: 5px 16px; flex-shrink: 0; align-items: center; gap: 8px; }
+#focus-bar.active { display: flex; }
+#focus-breadcrumb { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; font-size: 11px; flex: 1; }
+.crumb { color: #6c7086; cursor: pointer; padding: 2px 6px; border-radius: 4px; border: 1px solid transparent; }
+.crumb:hover { color: #cdd6f4; border-color: #45475a; }
+.crumb.current { color: #cba6f7; border-color: #cba6f7; background: #1e1e2e; cursor: default; }
+.crumb-sep { color: #45475a; }
+#focus-scope { font-size: 10px; color: #6c7086; }
+.focus-legend { display: flex; gap: 10px; font-size: 10px; color: #6c7086; }
+.fl-item { display: flex; align-items: center; gap: 4px; }
+.fl-dot { width: 8px; height: 2px; border-radius: 1px; }
+
+#controls { position: absolute; bottom: 14px; left: 12px; display: flex; flex-direction: column; gap: 5px; z-index: 20; }
+.ctrl-row { display: flex; gap: 4px; align-items: center; }
+.ctrl-row span { font-size: 10px; color: #6c7086; }
+.depth-btn { padding: 4px 8px; font-size: 11px; }
+.depth-btn.sel { background: #cba6f7; color: #1e1e2e; border-color: #cba6f7; font-weight: 700; }
+#zoom-hint { font-size: 10px; color: #6c7086; text-align: center; }
+
+/* ── Minimap ── */
+#minimap { position: absolute; bottom: 14px; right: 14px; width: 160px; height: 100px; background: #181825cc; border: 1px solid #313244; border-radius: 8px; overflow: hidden; cursor: pointer; z-index: 20; }
+#minimap canvas { width: 100%; height: 100%; display: block; }
+#minimap-viewport { position: absolute; border: 1px solid #cba6f7; background: #cba6f722; pointer-events: none; }
+
+#info { position: absolute; top: 12px; right: 12px; background: #181825ee; border: 1px solid #45475a; border-radius: 10px; padding: 13px 15px; max-width: 320px; min-width: 220px; font-size: 11px; display: none; z-index: 100; max-height: calc(100vh - 120px); overflow-y: auto; }
+#info::-webkit-scrollbar { width: 3px; } #info::-webkit-scrollbar-thumb { background: #45475a; }
+#info h3 { color: #cba6f7; margin-bottom: 6px; font-size: 12px; word-break: break-all; line-height: 1.4; }
+.info-badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; margin-bottom: 7px; }
+.info-lbl { color: #6c7086; font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; margin-top: 8px; margin-bottom: 3px; }
+#info ul { padding-left: 12px; max-height: 120px; overflow-y: auto; }
+#info ul::-webkit-scrollbar { width: 3px; }
+#info ul::-webkit-scrollbar-thumb { background: #45475a; }
+#info li { color: #cdd6f4; word-break: break-all; margin: 2px 0; line-height: 1.3; cursor: pointer; }
+#info li:hover { color: #cba6f7; text-decoration: underline; }
+.hub-warn { color: #f38ba8; font-size: 10px; margin-top: 5px; }
+.close-btn { float: right; cursor: pointer; color: #6c7086; font-size: 14px; margin-top: -2px; }
+/* Permission panel */
+#perm-block { margin-top: 8px; border-top: 1px solid #313244; padding-top: 8px; }
+.perm-section { margin-bottom: 8px; }
+.perm-section-title { font-size: 10px; color: #6c7086; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: flex; align-items: center; gap: 5px; }
+.perm-section-title .perm-icon { font-size: 12px; }
+.wi-card { background: #1e1e2e; border: 1px solid #313244; border-radius: 6px; padding: 5px 8px; margin-bottom: 3px; font-size: 11px; }
+.wi-ksa { color: #a6e3a1; font-weight: 600; word-break: break-all; }
+.wi-label { color: #6c7086; font-size: 9px; }
+.role-card { background: #1e1e2e; border: 1px solid #313244; border-radius: 6px; padding: 5px 8px; margin-bottom: 3px; }
+.role-name { color: #fab387; font-size: 11px; font-weight: 600; word-break: break-all; margin-bottom: 3px; }
+.role-perms { display: flex; flex-wrap: wrap; gap: 3px; max-height: 80px; overflow-y: auto; }
+.perm-tag { background: #313244; color: #a6adc8; font-size: 9px; padding: 1px 5px; border-radius: 3px; white-space: nowrap; }
+.perm-tag.pubsub { background: #1a2a10; color: #a6e3a1; }
+.perm-tag.storage { background: #2a1010; color: #f38ba8; }
+.perm-tag.sql { background: #0a2020; color: #89dceb; }
+.perm-tag.run { background: #2a1500; color: #fab387; }
+.perm-tag.secretmanager { background: #1a1030; color: #cba6f7; }
+.perm-tag.iam { background: #2a2010; color: #f9e2af; }
+.no-perm { color: #6c7086; font-size: 10px; font-style: italic; }
+.runs-as-chip { display: inline-block; background: #313244; color: #89dceb; font-size: 10px; padding: 2px 7px; border-radius: 4px; cursor: pointer; margin: 2px 0; word-break: break-all; }
+.runs-as-chip:hover { background: #45475a; }
+
+* { scrollbar-width: thin; scrollbar-color: #45475a #1e1e2e; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Terragrunt Dependency Graph</h1>
+  <span class="sep">|</span>
+  <div class="breadcrumb"><span>ebb-ebury-connect</span><span>›</span><span>dev</span></div>
+  <span class="spacer"></span>
+  <button onclick="exportPNG()">&#11015; Export PNG</button>
+  <button onclick="fitAll()">&#8862; Fit All</button>
+</header>
+
+<div id="statsbar"></div>
+
+<div id="focus-bar">
+  <div id="focus-breadcrumb"></div>
+  <div class="focus-legend">
+    <div class="fl-item"><div class="fl-dot" style="background:#FFD600"></div>foco</div>
+    <div class="fl-item"><div class="fl-dot" style="background:#f38ba8"></div>upstream</div>
+    <div class="fl-item"><div class="fl-dot" style="background:#89dceb"></div>downstream</div>
+    <div class="fl-item"><div class="fl-dot" style="background:#6c7086"></div>2° hop</div>
+  </div>
+  <span id="focus-scope"></span>
+  <button onclick="exitFocus()" style="font-size:11px;padding:3px 10px;">&#x2715; Sair do foco</button>
+</div>
+
+<div id="body">
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <input type="text" id="sidebar-search" placeholder="&#128269; Buscar nó..." oninput="buildSidebar(this.value)">
+    </div>
+    <div id="sidebar-list"></div>
+  </div>
+
+  <div id="canvas-wrap">
+    <div id="svg-container">
+      __SVG__
+    </div>
+
+    <canvas id="focus-canvas" style="position:absolute;top:0;left:0;z-index:10;display:none;"></canvas>
+    <div id="controls">
+      <div class="ctrl-row">
+        <span>Foco:</span>
+        <button class="depth-btn sel" id="d1" onclick="setDepth(1)">1 hop</button>
+        <button class="depth-btn" id="d2" onclick="setDepth(2)">2 hops</button>
+        <button class="depth-btn" id="d0" onclick="setDepth(0)">todos</button>
+      </div>
+      <div class="ctrl-row">
+        <button onclick="exitFocus()" title="Esc">&#x2715; Sair</button>
+        <button onclick="resetZoom()">&#9711; Reset</button>
+      </div>
+      <div id="zoom-hint">scroll=zoom &bull; drag=pan &bull; esc=sair</div>
+    </div>
+    <div id="minimap"><canvas id="minimap-canvas"></canvas><div id="minimap-viewport"></div></div>
+  </div>
+</div>
+
+<div id="info">
+  <span class="close-btn" onclick="document.getElementById('info').style.display='none'">&#x2715;</span>
+  <h3 id="info-title"></h3>
+  <span class="info-badge" id="info-badge"></span>
+  <div class="info-lbl">Depende de <span id="cnt-deps" style="color:#45475a"></span></div>
+  <ul id="info-deps"></ul>
+  <div class="info-lbl">Requerido por <span id="cnt-rdeps" style="color:#45475a"></span></div>
+  <ul id="info-rdeps"></ul>
+  <div class="hub-warn" id="info-hub"></div>
+  <div id="perm-block" style="display:none"></div>
+</div>
+
+<script>
+// ── Pan/Zoom ──────────────────────────────────────────────────────────────────
+const wrap = document.getElementById('canvas-wrap');
+const cont = document.getElementById('svg-container');
+let scale = 1, tx = 0, ty = 0;
+function applyT() { cont.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`; }
+function fitAll() {
+  const s = cont.querySelector('svg');
+  const vb = s.viewBox.baseVal;
+  const sw = vb.width || parseFloat(s.getAttribute('width')) || 800;
+  const sh = vb.height || parseFloat(s.getAttribute('height')) || 600;
+  scale = Math.min(wrap.clientWidth/sw, wrap.clientHeight/sh) * 0.92;
+  tx = (wrap.clientWidth - sw*scale)/2;
+  ty = (wrap.clientHeight - sh*scale)/2;
+  applyT();
+}
+function resetZoom() { scale=1; tx=0; ty=0; applyT(); }
+wrap.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = wrap.getBoundingClientRect();
+  const mx=e.clientX-r.left, my=e.clientY-r.top;
+  const f = e.deltaY<0 ? 1.12 : 0.89;
+  const ns = Math.min(Math.max(scale*f, 0.04), 25);
+  tx = mx-(mx-tx)*(ns/scale); ty = my-(my-ty)*(ns/scale); scale=ns; applyT();
+}, {passive:false});
+let drag=false,sx,sy,stx,sty;
+wrap.addEventListener('mousedown', e => { if(e.button||e.target.closest('.node')) return; drag=true; sx=e.clientX; sy=e.clientY; stx=tx; sty=ty; });
+window.addEventListener('mousemove', e => { if(!drag) return; tx=stx+e.clientX-sx; ty=sty+e.clientY-sy; applyT(); });
+window.addEventListener('mouseup', () => drag=false);
+
+// ── Permission data (injected from HCL scan) ─────────────────────────────────
+const permData = __PERM_JSON__;
+
+// ── Build graph data ──────────────────────────────────────────────────────────
+const svgEl = cont.querySelector('svg');
+const allNs = [...svgEl.querySelectorAll('.node')];
+const allEs = [...svgEl.querySelectorAll('.edge')];
+const allClusters = [...svgEl.querySelectorAll('.cluster')];
+const nodeBBox = {}; // pre-scanned positions (filled on window.load)
+
+const TYPES = [
+  {key:'service-accounts',      label:'Service Accounts',       color:'#4285F4'},
+  {key:'iam/roles',             label:'IAM Roles',              color:'#FBBC04'},
+  {key:'artifact-registry',     label:'Artifact Registry',      color:'#7c3aed'},
+  {key:'pub-sub/topics',        label:'Pub/Sub Topics',         color:'#34A853'},
+  {key:'pub-sub/subscriptions', label:'Pub/Sub Subscriptions',  color:'#7CB342'},
+  {key:'cloud-run',             label:'Cloud Run',              color:'#FF6D00'},
+  {key:'cloud-scheduler',       label:'Cloud Scheduler',        color:'#9C27B0'},
+  {key:'cloud-storage',         label:'Cloud Storage',          color:'#EA4335'},
+  {key:'cloud-sql',             label:'Cloud SQL',              color:'#00BCD4'},
+  {key:'compute-engine',        label:'Compute Engine',         color:'#CDDC39'},
+  {key:'firestore',             label:'Firestore',              color:'#00897B'},
+  {key:'_other',                label:'Outros',                 color:'#6c7086'},
+];
+function getType(id) {
+  for (const t of TYPES) { if(t.key!=='_other' && id.includes(t.key)) return t; }
+  return TYPES.find(t=>t.key==='_other');
+}
+
+const nodeMap = {};
+allNs.forEach(el => {
+  const t = el.querySelector('title'); if(!t) return;
+  nodeMap[t.textContent.trim()] = {el, type: getType(t.textContent.trim())};
+});
+
+const edgeOut = {}, edgeIn = {};
+allEs.forEach(e => {
+  const t=e.querySelector('title'); if(!t) return;
+  const r=t.textContent.trim(), s=r.indexOf('->'); if(s<0) return;
+  const src=r.slice(0,s).trim(), dst=r.slice(s+2).trim();
+  (edgeOut[src]=edgeOut[src]||[]).push(dst);
+  (edgeIn[dst]=edgeIn[dst]||[]).push(src);
+});
+
+// ── Stats bar ─────────────────────────────────────────────────────────────────
+const hiddenTypes = new Set();
+function buildStats() {
+  const bar = document.getElementById('statsbar');
+  const counts = {};
+  Object.values(nodeMap).forEach(({type}) => counts[type.key]=(counts[type.key]||0)+1);
+  bar.innerHTML = `<span style="font-size:11px;color:#6c7086">${Object.keys(nodeMap).length} nós &bull; ${allEs.length} edges</span>`;
+  TYPES.forEach(t => {
+    const c = counts[t.key]||0; if(!c) return;
+    const chip = document.createElement('div');
+    chip.className='stat-chip'; chip.dataset.type=t.key;
+    chip.innerHTML=`<div class="stat-dot" style="background:${t.color}"></div>${t.label}<span class="stat-num">${c}</span>`;
+    chip.title='Clique para ocultar/mostrar';
+    chip.onclick = () => {
+      if(hiddenTypes.has(t.key)) { hiddenTypes.delete(t.key); chip.classList.remove('dimmed'); }
+      else { hiddenTypes.add(t.key); chip.classList.add('dimmed'); }
+      applyTypeFilter();
+    };
+    bar.appendChild(chip);
+  });
+}
+function applyTypeFilter() {
+  Object.entries(nodeMap).forEach(([id,{el,type}]) => { el.style.visibility=hiddenTypes.has(type.key)?'hidden':''; });
+  allEs.forEach(e => {
+    const t=e.querySelector('title'); if(!t) return;
+    const r=t.textContent.trim(), s=r.indexOf('->'); if(s<0) return;
+    const src=r.slice(0,s).trim(), dst=r.slice(s+2).trim();
+    e.style.visibility=(hiddenTypes.has(nodeMap[src]?.type?.key)||hiddenTypes.has(nodeMap[dst]?.type?.key))?'hidden':'';
+  });
+  buildSidebar(document.getElementById('sidebar-search').value);
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+function buildSidebar(filter='') {
+  filter=filter.toLowerCase();
+  const list=document.getElementById('sidebar-list'); list.innerHTML='';
+  const grouped={};
+  TYPES.forEach(t=>{grouped[t.key]=[];});
+  Object.keys(nodeMap).forEach(id => {
+    if(hiddenTypes.has(nodeMap[id].type.key)) return;
+    if(filter && !id.toLowerCase().includes(filter)) return;
+    grouped[nodeMap[id].type.key].push(id);
+  });
+  TYPES.forEach(t => {
+    const ids=(grouped[t.key]||[]).sort(); if(!ids.length) return;
+    const hdr=document.createElement('div'); hdr.className='group-label';
+    hdr.innerHTML=`<div class="group-dot" style="background:${t.color}"></div>${t.label}<span class="sidebar-count">${ids.length}</span>`;
+    list.appendChild(hdr);
+    ids.forEach(id => {
+      const item=document.createElement('div'); item.className='node-item'; item.dataset.id=id;
+      item.textContent=id.split('/').slice(-2).join('/'); item.title=id;
+      item.onclick=()=>focusNode(id);
+      list.appendChild(item);
+    });
+  });
+}
+function clearActive() { document.querySelectorAll('.node-item.active').forEach(e=>e.classList.remove('active')); }
+
+// depth setting
+let depth=1;
+function setDepth(d) {
+  depth=d;
+  ['d0','d1','d2'].forEach(i=>document.getElementById(i).classList.remove('sel'));
+  document.getElementById('d'+d).classList.add('sel');
+  // re-apply focus if active
+  if(inFocusMode && focusHistory.length) applyFocus(focusHistory[focusHistory.length-1]);
+}
+
+// ── Focus mode ────────────────────────────────────────────────────────────────
+let focusHistory = [];  // breadcrumb stack
+let inFocusMode = false;
+
+// Build directional sets from a focused node
+function getFocusSets(id) {
+  // upstream: nodes that id depends on (edgeOut[id] and their ancestors)
+  const upstream = new Set();
+  const downstream = new Set();
+  const hop2 = new Set();
+
+  // BFS upstream (things id depends ON)
+  const upFront = new Set(edgeOut[id]||[]);
+  upFront.forEach(n => upstream.add(n));
+  if(depth >= 2) {
+    upFront.forEach(n => (edgeOut[n]||[]).forEach(nn => { if(nn!==id&&!upstream.has(nn)) hop2.add(nn); }));
+  }
+  if(depth === 0) {
+    let more=true;
+    while(more) { more=false; Object.keys(nodeMap).forEach(n=>{ if(upstream.has(n)||n===id) return; if((edgeOut[n]||[]).some(d=>upstream.has(d)||d===id)||(edgeIn[n]||[]).some(d=>upstream.has(d)||d===id)){upstream.add(n);more=true;} }); }
+  }
+
+  // BFS downstream (things that depend ON id)
+  const downFront = new Set(edgeIn[id]||[]);
+  downFront.forEach(n => downstream.add(n));
+  if(depth >= 2) {
+    downFront.forEach(n => (edgeIn[n]||[]).forEach(nn => { if(nn!==id&&!downstream.has(nn)) hop2.add(nn); }));
+  }
+  if(depth === 0) {
+    let more=true;
+    while(more) { more=false; Object.keys(nodeMap).forEach(n=>{ if(downstream.has(n)||n===id) return; if((edgeIn[n]||[]).some(d=>downstream.has(d)||d===id)||(edgeOut[n]||[]).some(d=>downstream.has(d)||d===id)){downstream.add(n);more=true;} }); }
+  }
+
+  return {upstream, downstream, hop2};
+}
+
+// ── Canvas Focus Renderer ─────────────────────────────────────────────────────
+const focusCv = document.getElementById('focus-canvas');
+const focusCx = focusCv.getContext('2d');
+let cvHits = [];
+// canvas-level pan/zoom
+let cvScale = 1, cvTx = 0, cvTy = 0;
+let cvDrag = false, cvSx, cvSy, cvStx, cvSty;
+
+function rrect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r); ctx.closePath();
+}
+
+// Build the full virtual layout (no transform applied yet)
+let cvLayout = null; // {id, x, y, w, h, col, isCenter}[]
+
+function buildLayout(id) {
+  const ups   = edgeOut[id]||[];
+  const downs = edgeIn[id]||[];
+  const W = focusCv.clientWidth || wrap.clientWidth;
+
+  // For SA nodes: collect roles that downstream subs also depend on (least-privilege pattern)
+  const subRoleSet = new Set();
+  const subRoleEdges = [];
+  if (id.includes('service-accounts')) {
+    downs.forEach(dn => {
+      (edgeOut[dn]||[]).forEach(dep => {
+        if (dep.includes('iam/roles') && !ups.includes(dep)) {
+          subRoleSet.add(dep);
+          subRoleEdges.push({from: dn, to: dep});
+        }
+      });
+    });
+  }
+  const subRoles = [...subRoleSet];
+
+  // Node sizing: shrink when many nodes, but never too small
+  const maxSide = Math.max(ups.length, downs.length, subRoles.length, 1);
+  const maxCols = Math.max(1, Math.min(8, Math.floor((W - 32) / 145)));
+  const NW = Math.max(110, Math.floor((W - 32 - maxCols*10) / Math.min(maxSide, maxCols)));
+  const NH = Math.max(34, Math.floor(NW * 0.26));
+  const HGAP = 10, VGAP = 70, CW = 230, CH = 56;
+
+  function gridRows(nodes) {
+    if (!nodes.length) return [];
+    const cols = Math.min(nodes.length, maxCols);
+    const rows = [];
+    for (let i=0; i<nodes.length; i++) {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const rowCount = (row === Math.ceil(nodes.length/cols)-1)
+        ? nodes.length - row*cols : cols;
+      const rowW = rowCount*(NW+HGAP) - HGAP;
+      rows.push({id:nodes[i], col, row,
+        rx: W/2 - rowW/2 + col*(NW+HGAP) + NW/2,
+        ry: row*(NH+HGAP),
+        w:NW, h:NH});
+    }
+    return rows;
+  }
+
+  const upRows      = gridRows(ups);
+  const downRows    = gridRows(downs);
+  const subRoleRows = gridRows(subRoles);
+  const upH      = upRows.length      ? (Math.max(...upRows.map(r=>r.ry))      + NH + VGAP) : VGAP/2;
+  const downH    = downRows.length    ? (Math.max(...downRows.map(r=>r.ry))    + NH + VGAP) : 0;
+  const subRoleH = subRoleRows.length ? (Math.max(...subRoleRows.map(r=>r.ry)) + NH + 20)   : 0;
+  const centerY = upH + CH/2;
+  const totalH  = centerY + CH/2 + downH + subRoleH;
+
+  // Vertical centering offset
+  const oy = Math.max(20, (wrap.clientHeight - totalH) / 2);
+  const downBaseY    = oy + centerY + CH/2 + VGAP/2;
+  const downMaxY     = downRows.length ? Math.max(...downRows.map(r=>r.ry)) + NH : 0;
+  const subRoleBaseY = downBaseY + downMaxY + (downRows.length ? VGAP/2 : 0);
+  const nodes = [];
+  upRows.forEach(r      => nodes.push({...r, y: oy+r.ry,           x: r.rx, isCenter:false, isSubRole:false}));
+  downRows.forEach(r    => nodes.push({...r, y: downBaseY+r.ry,    x: r.rx, isCenter:false, isSubRole:false}));
+  subRoleRows.forEach(r => nodes.push({...r, y: subRoleBaseY+r.ry, x: r.rx, isCenter:false, isSubRole:true}));
+  nodes.push({id, x:W/2, y:oy+centerY, w:CW, h:CH, isCenter:true, isSubRole:false});
+  return {nodes, ups, downs, subRoles, subRoleEdges,
+          upCount:ups.length, downCount:downs.length, subRoleCount:subRoles.length,
+          totalH: totalH+oy+20, W};
+}
+
+function drawFocusCanvas(id) {
+  const dpr = window.devicePixelRatio || 1;
+  const CW = wrap.clientWidth, CH2 = wrap.clientHeight;
+  focusCv.width  = CW * dpr;
+  focusCv.height = CH2 * dpr;
+  focusCv.style.width  = CW+'px';
+  focusCv.style.height = CH2+'px';
+  const c = focusCx;
+  c.setTransform(dpr,0,0,dpr,0,0);
+  c.clearRect(0,0,CW,CH2);
+  c.fillStyle='#1e1e2e'; c.fillRect(0,0,CW,CH2);
+
+  const lay = cvLayout;
+  if(!lay) return;
+  const pos = {};
+  lay.nodes.forEach(n => pos[n.id]=[n.x, n.y]);
+
+  // Apply canvas pan/zoom
+  c.save();
+  c.translate(cvTx, cvTy);
+  c.scale(cvScale, cvScale);
+
+  // Section labels
+  c.font='10px Segoe UI'; c.textAlign='left'; c.textBaseline='middle';
+  const firstUp = lay.nodes.find(n=>!n.isCenter && lay.ups.includes(n.id));
+  if(firstUp && lay.upCount) {
+    c.fillStyle='#f38ba866';
+    c.fillText('▲ DEPENDE DE ('+lay.upCount+')', 16, firstUp.y - firstUp.h/2 - 10);
+  }
+  const firstDown = lay.nodes.find(n=>!n.isCenter && lay.downs.includes(n.id));
+  if(firstDown && lay.downCount) {
+    c.fillStyle='#89dceb66';
+    c.fillText('▼ REQUERIDO POR ('+lay.downCount+')', 16, firstDown.y - firstDown.h/2 - 10);
+  }
+  const firstSubRole = lay.nodes.find(n=>n.isSubRole);
+  if(firstSubRole && lay.subRoleCount) {
+    c.fillStyle='#FBBC0488';
+    c.fillText('🔑 ROLES VIA SUBS ('+lay.subRoleCount+')', 16, firstSubRole.y - firstSubRole.h/2 - 10);
+  }
+
+  // Edges
+  function drawEdge(a, b, col) {
+    const [ax,ay]=pos[a]||[],  [bx,by]=pos[b]||[];
+    if(ax===undefined||bx===undefined) return;
+    const dx=bx-ax, dy=by-ay, len=Math.hypot(dx,dy); if(len<4) return;
+    const ux=dx/len, uy=dy/len;
+    const an = lay.nodes.find(n=>n.id===a), bn = lay.nodes.find(n=>n.id===b);
+    const startOffset = an ? Math.hypot(an.w/2, an.h/2)*0.7 : 20;
+    const endOffset   = bn ? Math.hypot(bn.w/2, bn.h/2)*0.7 : 20;
+    const sx=ax+ux*startOffset, sy=ay+uy*startOffset;
+    const ex=bx-ux*endOffset,   ey=by-uy*endOffset;
+    c.beginPath(); c.moveTo(sx,sy); c.lineTo(ex,ey);
+    c.strokeStyle=col; c.lineWidth=1.2/cvScale; c.stroke();
+    const s=7/cvScale;
+    c.beginPath(); c.moveTo(ex,ey);
+    c.lineTo(ex-ux*s+uy*s*.45, ey-uy*s-ux*s*.45);
+    c.lineTo(ex-ux*s-uy*s*.45, ey-uy*s+ux*s*.45);
+    c.closePath(); c.fillStyle=col; c.fill();
+  }
+  lay.ups.forEach(n   => drawEdge(id, n, '#f38ba877'));
+  lay.downs.forEach(n => drawEdge(n, id, '#89dceb77'));
+  (lay.subRoleEdges||[]).forEach(e => drawEdge(e.from, e.to, '#FBBC0455'));
+
+  // Nodes
+  cvHits = [];
+  lay.nodes.forEach(n => {
+    const {id:nid, x:nx, y:ny, w:nw, h:nh, isCenter} = n;
+    const t = nodeMap[nid]?.type;
+    const col = t?.color || '#6c7086';
+    const parts = nid.split('/');
+    const line1 = parts.length>=3 ? parts.slice(-2,-1)[0] : '';
+    const line2 = parts.slice(-1)[0] || nid;
+
+    if(isCenter) { c.shadowColor='#FFD600'; c.shadowBlur=16/cvScale; }
+    rrect(c, nx-nw/2, ny-nh/2, nw, nh, 8);
+    c.fillStyle=col; c.fill();
+    const isSubRole = n.isSubRole;
+    c.strokeStyle = isCenter ? '#FFD600' : isSubRole ? '#FBBC0499' : '#ffffff22';
+    c.lineWidth = isCenter ? 2/cvScale : isSubRole ? 1.5/cvScale : 1/cvScale; c.stroke();
+    c.shadowBlur=0;
+
+    const tc=(col==='#FBBC04'||col==='#CDDC39')?'#1e1e2e':'#fff';
+    c.fillStyle=tc; c.textAlign='center'; c.textBaseline='middle';
+    if(line1) {
+      c.font='8px \'Segoe UI\',sans-serif';
+      c.globalAlpha=0.55; c.fillText(line1, nx, ny-nh*0.22, nw-12); c.globalAlpha=1;
+      c.font=(isCenter?'bold 13':'bold '+Math.max(9,Math.min(11,Math.floor(nw/14))))+'px \'Segoe UI\',sans-serif';
+      c.fillText(line2, nx, ny+nh*0.22, nw-12);
+    } else {
+      c.font=(isCenter?'bold 13':'bold '+Math.max(9,Math.min(11,Math.floor(nw/14))))+'px \'Segoe UI\',sans-serif';
+      c.fillText(line2, nx, ny, nw-12);
+    }
+    // Hit area in screen coords (accounting for pan/zoom)
+    cvHits.push({id:nid,
+      sx: (nx-nw/2)*cvScale+cvTx, sy: (ny-nh/2)*cvScale+cvTy,
+      sw: nw*cvScale, sh: nh*cvScale});
+  });
+  c.restore();
+
+  // Fixed footer
+  c.font='10px Segoe UI'; c.textAlign='center'; c.fillStyle='#45475a'; c.textBaseline='bottom';
+  c.fillText('Scroll=zoom  •  Drag=pan  •  Clique num nó  •  Esc para sair', CW/2, CH2-6);
+}
+
+function renderFocusCanvas(id) {
+  cvScale=1; cvTx=0; cvTy=0;
+  focusCv.style.display = 'block';
+  cont.style.display = 'none';
+  cvLayout = buildLayout(id);
+  drawFocusCanvas(id);
+}
+
+// Canvas zoom
+focusCv.addEventListener('wheel', e => {
+  if(!cvLayout) return;
+  e.preventDefault();
+  const r=focusCv.getBoundingClientRect();
+  const mx=(e.clientX-r.left), my=(e.clientY-r.top);
+  const f=e.deltaY<0?1.15:0.87;
+  const ns=Math.min(Math.max(cvScale*f,0.15),8);
+  cvTx=mx-(mx-cvTx)*(ns/cvScale); cvTy=my-(my-cvTy)*(ns/cvScale); cvScale=ns;
+  drawFocusCanvas(focusHistory[focusHistory.length-1]);
+}, {passive:false});
+focusCv.addEventListener('mousedown', e => { if(e.button) return; cvDrag=true; cvSx=e.clientX; cvSy=e.clientY; cvStx=cvTx; cvSty=cvTy; });
+window.addEventListener('mousemove', e => { if(!cvDrag) return; cvTx=cvStx+e.clientX-cvSx; cvTy=cvSty+e.clientY-cvSy; drawFocusCanvas(focusHistory[focusHistory.length-1]); });
+window.addEventListener('mouseup', () => { cvDrag=false; });
+
+focusCv.addEventListener('click', e => {
+  if(Math.abs(e.clientX-cvSx)>4||Math.abs(e.clientY-cvSy)>4) return; // was a drag
+  const r=focusCv.getBoundingClientRect();
+  const mx=e.clientX-r.left, my=e.clientY-r.top;
+  for(const n of cvHits) {
+    if(mx>=n.sx && mx<=n.sx+n.sw && my>=n.sy && my<=n.sy+n.sh) { focusNode(n.id); return; }
+  }
+});
+focusCv.addEventListener('mousemove', e => {
+  if(cvDrag) return;
+  const r=focusCv.getBoundingClientRect();
+  const mx=e.clientX-r.left, my=e.clientY-r.top;
+  focusCv.style.cursor=cvHits.some(n=>mx>=n.sx&&mx<=n.sx+n.sw&&my>=n.sy&&my<=n.sy+n.sh)?'pointer':cvDrag?'grabbing':'grab';
+});
+
+function applyFocus(id) {
+  inFocusMode = true;
+  const ups = edgeOut[id]||[], downs = edgeIn[id]||[];
+  const total = 1 + new Set([...ups,...downs]).size;
+  document.getElementById('focus-bar').classList.add('active');
+  document.getElementById('focus-scope').textContent = total+' de '+Object.keys(nodeMap).length+' nós visíveis';
+  renderBreadcrumb();
+  renderFocusCanvas(id);
+  updateMinimap();
+}
+
+function fitVisible(visible) {
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  visible.forEach(nid => {
+    const bb = nodeBBox[nid]; if(!bb) return;
+    minX=Math.min(minX,bb.x); minY=Math.min(minY,bb.y);
+    maxX=Math.max(maxX,bb.x+bb.w); maxY=Math.max(maxY,bb.y+bb.h);
+  });
+  if(minX===Infinity) { fitAll(); return; }
+  const pad = 60;
+  const cw = wrap.clientWidth, ch = wrap.clientHeight;
+  const fw = maxX - minX + 2*pad, fh = maxY - minY + 2*pad;
+  scale = Math.min(cw/fw, ch/fh) * 0.90;
+  tx = cw/2 - (minX+maxX)/2 * scale;
+  ty = ch/2 - (minY+maxY)/2 * scale;
+  applyT();
+}
+
+function exitFocus() {
+  inFocusMode = false;
+  focusHistory = [];
+  focusCv.style.display = 'none'; cvHits = [];
+  cont.style.display = '';
+  allNs.forEach(el=>el.classList.remove('node-hidden','node-focus','node-up','node-down','node-hop2'));
+  allEs.forEach(el=>el.classList.remove('edge-hidden','edge-up','edge-down','edge-hop2'));
+  allClusters.forEach(cl => { cl.style.display = ''; });
+  document.getElementById('focus-bar').classList.remove('active');
+  document.getElementById('info').style.display='none';
+  clearActive(); fitAll(); updateMinimap();
+}
+
+function renderBreadcrumb() {
+  const bc = document.getElementById('focus-breadcrumb');
+  bc.innerHTML = '';
+  focusHistory.forEach((hid, i) => {
+    if(i>0) { const sep=document.createElement('span'); sep.className='crumb-sep'; sep.textContent='›'; bc.appendChild(sep); }
+    const c=document.createElement('span');
+    c.className='crumb'+(i===focusHistory.length-1?' current':'');
+    c.textContent=hid.split('/').slice(-2).join('/');
+    c.title=hid;
+    if(i<focusHistory.length-1) c.onclick=()=>{ focusHistory=focusHistory.slice(0,i+1); applyFocus(hid); };
+    bc.appendChild(c);
+  });
+}
+
+function resetHighlight(closeInfo=true) {
+  exitFocus();
+  if(closeInfo) document.getElementById('info').style.display='none';
+}
+
+function focusNode(id) {
+  clearActive();
+  document.querySelectorAll(`.node-item[data-id="${CSS.escape(id)}"]`).forEach(el=>el.classList.add('active'));
+  // Push to history only if new node
+  if(focusHistory.length===0||focusHistory[focusHistory.length-1]!==id) focusHistory.push(id);
+  applyFocus(id);
+  showInfo(id);
+}
+
+// Classify a GCP permission into a CSS color class
+function permClass(p) {
+  if (p.startsWith('pubsub.'))        return 'perm-tag pubsub';
+  if (p.startsWith('storage.'))       return 'perm-tag storage';
+  if (p.startsWith('cloudsql.'))      return 'perm-tag sql';
+  if (p.startsWith('run.'))           return 'perm-tag run';
+  if (p.startsWith('secretmanager.')) return 'perm-tag secretmanager';
+  if (p.startsWith('iam.'))           return 'perm-tag iam';
+  return 'perm-tag';
+}
+
+function showInfo(id) {
+  const deps=edgeOut[id]||[], rdeps=edgeIn[id]||[];
+  const t=nodeMap[id]?.type;
+  document.getElementById('info-title').textContent=id;
+  const badge=document.getElementById('info-badge');
+  if(t){badge.textContent=t.label;badge.style.background=t.color;badge.style.color=(t.color==='#FBBC04'||t.color==='#E8EAED')?'#000':'#fff';}
+  document.getElementById('cnt-deps').textContent=`(${deps.length})`;
+  document.getElementById('cnt-rdeps').textContent=`(${rdeps.length})`;
+  const mkList=(items,ul)=>{
+    ul.innerHTML = items.length
+      ? items.map(d=>`<li onclick="focusNode('${d.replace(/'/g,"\\'")}')">${d}</li>`).join('')
+      : '<li style="color:#6c7086">nenhuma</li>';
+  };
+  mkList(deps, document.getElementById('info-deps'));
+  mkList(rdeps, document.getElementById('info-rdeps'));
+  document.getElementById('info-hub').textContent = (deps.length+rdeps.length)>=8
+    ? `⚠ Hub: ${deps.length+rdeps.length} conexões — alto impacto` : '';
+
+  // ── IAM/Permission debug panel ─────────────────────────────────────────────
+  const pb = document.getElementById('perm-block');
+  pb.innerHTML = ''; pb.style.display = 'none';
+  const isSA   = id.includes('service-accounts');
+  const isRole = id.includes('iam/roles');
+
+  if (isSA) {
+    const sa = permData.sas?.[id] || {};
+    let html = '';
+
+    // Workload Identity section
+    const wiList = sa.wi || [];
+    html += `<div class="perm-section"><div class="perm-section-title"><span class="perm-icon">🔑</span>Workload Identity</div>`;
+    if (wiList.length) {
+      wiList.forEach(w => {
+        html += `<div class="wi-card"><div class="wi-label">K8s SA (pode impersonar)</div><div class="wi-ksa">${w.ksa}</div></div>`;
+      });
+    } else {
+      html += `<div class="no-perm">Sem Workload Identity configurado</div>`;
+    }
+    html += `</div>`;
+
+    // IAM roles + permissions
+    const roleList = sa.project_roles || [];
+    html += `<div class="perm-section"><div class="perm-section-title"><span class="perm-icon">🛡️</span>IAM Roles no Projeto</div>`;
+    if (roleList.length) {
+      roleList.forEach(r => {
+        const name = (r.role || '').split('/').pop();
+        const perms = r.permissions || [];
+        html += `<div class="role-card"><div class="role-name">${name}</div>`;
+        if (perms.length) {
+          html += `<div class="role-perms">${perms.map(p=>`<span class="${permClass(p)}">${p}</span>`).join('')}</div>`;
+        } else {
+          html += `<div class="no-perm">Role externo (sem permissões mapeadas no código)</div>`;
+        }
+        html += `</div>`;
+      });
+    } else {
+      html += `<div class="no-perm">Sem project IAM roles definidos no HCL</div>`;
+    }
+    html += `</div>`;
+
+    // Services running as this SA
+    const runners = rdeps.filter(n => n.includes('cloud-run') || n.includes('cloud-scheduler'));
+    if (runners.length) {
+      html += `<div class="perm-section"><div class="perm-section-title"><span class="perm-icon">🚀</span>Serviços rodando como esta SA</div>`;
+      runners.forEach(r => {
+        const short = r.split('/').slice(-2).join('/');
+        html += `<span class="runs-as-chip" onclick="focusNode('${r.replace(/'/g,"\\'")}')"> ${short}</span><br>`;
+      });
+      html += `</div>`;
+    }
+
+    // Least-privilege permissions via subscriptions
+    // Convention: role name "ebb_wp_X_least_privilege_role_dev" → SA "ebb-wp-X"
+    const saSlug = id.split('/').pop(); // e.g. "ebb-wp-pre-validation"
+    const subRolesAll = permData.sub_roles || {};
+    // Find sub entries where any role node name contains the SA slug (with _ instead of -)
+    const saSlugU = saSlug.replace(/-/g,'_');
+    const matchingSubs = Object.entries(subRolesAll).filter(([subId, roles]) =>
+      roles.some(r => (r.node||r.role||'').includes(saSlugU))
+    );
+    if (matchingSubs.length) {
+      // Flatten all permissions from matched sub roles (dedup)
+      const lpPermsSet = new Set();
+      const lpRoleNames = new Set();
+      matchingSubs.forEach(([, roles]) => roles.forEach(r => {
+        if ((r.node||r.role||'').includes(saSlugU)) {
+          lpRoleNames.add((r.role||'').split('/').pop());
+          (r.permissions||[]).forEach(p => lpPermsSet.add(p));
+        }
+      }));
+      html += `<div class="perm-section"><div class="perm-section-title"><span class="perm-icon">📨</span>Permissões via Subscriptions (least-privilege)</div>`;
+      [...lpRoleNames].forEach(n => { html += `<div class="role-name" style="font-size:10px;margin-bottom:4px">${n}</div>`; });
+      if (lpPermsSet.size) {
+        html += `<div class="role-perms">${[...lpPermsSet].map(p=>`<span class="${permClass(p)}">${p}</span>`).join('')}</div>`;
+      }
+      html += `</div>`;
+    }
+
+    pb.innerHTML = html; pb.style.display = 'block';
+
+  } else if (isRole) {
+    const role = permData.roles?.[id] || {};
+    const perms = role.permissions || [];
+    let html = `<div class="perm-section"><div class="perm-section-title"><span class="perm-icon">📋</span>Permissões do Custom Role</div>`;
+    if (perms.length) {
+      html += `<div class="role-perms">${perms.map(p=>`<span class="${permClass(p)}">${p}</span>`).join('')}</div>`;
+    } else {
+      html += `<div class="no-perm">Sem permissões mapeadas</div>`;
+    }
+    html += `</div>`;
+    pb.innerHTML = html; pb.style.display = 'block';
+  }
+
+  document.getElementById('info').style.display='block';
+}
+
+// SVG node clicks
+allNs.forEach(el=>{
+  el.style.cursor='pointer';
+  el.addEventListener('click',e=>{
+    e.stopPropagation();
+    const t=el.querySelector('title'); if(!t) return;
+    focusNode(t.textContent.trim());
+  });
+});
+svgEl.addEventListener('click',e=>{
+  if(!e.target.closest('.node')) { exitFocus(); clearActive(); }
+});
+
+// ── Minimap ───────────────────────────────────────────────────────────────────
+function updateMinimap() {
+  const canvas=document.getElementById('minimap-canvas');
+  const vp=document.getElementById('minimap-viewport');
+  const mm=document.getElementById('minimap');
+  if(!canvas||!svgEl) return;
+  const vb=svgEl.viewBox.baseVal;
+  const svgW=vb.width||800, svgH=vb.height||600;
+  const mmW=mm.clientWidth, mmH=mm.clientHeight;
+  canvas.width=mmW; canvas.height=mmH;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,mmW,mmH);
+  ctx.fillStyle='#11111b'; ctx.fillRect(0,0,mmW,mmH);
+  const sx=mmW/svgW, sy=mmH/svgH;
+  // Draw visible nodes
+  Object.entries(nodeMap).forEach(([id,{el,type}])=>{
+    if(el.classList.contains('node-hidden')) return;
+    const shape=el.querySelector('polygon,ellipse,rect'); if(!shape) return;
+    const bb=shape.getBBox();
+    ctx.fillStyle=type.color+'cc';
+    ctx.fillRect(bb.x*sx, bb.y*sy, Math.max(bb.width*sx,3), Math.max(bb.height*sy,2));
+  });
+  // Viewport rect
+  const vx=(-tx/scale)*sx, vy=(-ty/scale)*sy;
+  const vw=(wrap.clientWidth/scale)*sx, vh=(wrap.clientHeight/scale)*sy;
+  vp.style.left=Math.max(0,vx)+'px'; vp.style.top=Math.max(0,vy)+'px';
+  vp.style.width=Math.min(vw,mmW)+'px'; vp.style.height=Math.min(vh,mmH)+'px';
+}
+// Click minimap to navigate
+document.getElementById('minimap')?.addEventListener('click',e=>{
+  const mm=document.getElementById('minimap');
+  const vb=svgEl.viewBox.baseVal;
+  const svgW=vb.width||800, svgH=vb.height||600;
+  const r=mm.getBoundingClientRect();
+  const px=(e.clientX-r.left)/r.width, py=(e.clientY-r.top)/r.height;
+  tx=wrap.clientWidth/2-px*svgW*scale;
+  ty=wrap.clientHeight/2-py*svgH*scale;
+  applyT(); updateMinimap();
+});
+// Update minimap on pan/zoom
+wrap.addEventListener('wheel',()=>setTimeout(updateMinimap,50),{passive:true});
+window.addEventListener('mouseup',()=>setTimeout(updateMinimap,50));
+
+// ── Export PNG ────────────────────────────────────────────────────────────────
+function exportPNG() {
+  const clone=svgEl.cloneNode(true);
+  clone.querySelectorAll('.node-dim,.node-hi,.node-hi2,.edge-dim').forEach(el=>
+    el.classList.remove('node-dim','node-hi','node-hi2','edge-dim'));
+  const vb=svgEl.viewBox.baseVal, w=vb.width||1600, h=vb.height||900, sc=2;
+  const canvas=document.createElement('canvas'); canvas.width=w*sc; canvas.height=h*sc;
+  const ctx=canvas.getContext('2d'); ctx.fillStyle='#1e1e2e'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  const blob=new Blob([new XMLSerializer().serializeToString(clone)],{type:'image/svg+xml'});
+  const url=URL.createObjectURL(blob);
+  const img=new Image();
+  img.onload=()=>{ ctx.drawImage(img,0,0,canvas.width,canvas.height); URL.revokeObjectURL(url);
+    const a=document.createElement('a'); a.download='ebb-dependency-graph.png'; a.href=canvas.toDataURL('image/png'); a.click(); };
+  img.src=url;
+}
+
+// ── Keyboard ──────────────────────────────────────────────────────────────────
+window.addEventListener('keydown',e=>{
+  if(e.target.matches('input')) return;
+  if(e.key==='Escape'){exitFocus();clearActive();document.getElementById('sidebar-search').value='';buildSidebar('');}
+  if(e.key==='Backspace'&&inFocusMode&&focusHistory.length>1){
+    focusHistory.pop();
+    applyFocus(focusHistory[focusHistory.length-1]);
+    showInfo(focusHistory[focusHistory.length-1]);
+  }
+  if(e.key==='+'||e.key==='='){scale*=1.15;applyT();updateMinimap();}
+  if(e.key==='-'){scale*=0.87;applyT();updateMinimap();}
+  if(e.key==='0') fitAll();
+  if(e.key==='1') setDepth(1);
+  if(e.key==='2') setDepth(2);
+  if(e.key==='a') setDepth(0);
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+buildStats();
+buildSidebar('');
+window.addEventListener('load',()=>setTimeout(()=>{
+  // Pre-scan node bounding boxes while all nodes are visible
+  allNs.forEach(el => {
+    const t = el.querySelector('title'); if(!t) return;
+    const nid = t.textContent.trim();
+    const shape = el.querySelector('polygon,ellipse,rect,path');
+    if(shape) { try { const bb=shape.getBBox(); if(bb.width>0||bb.height>0) nodeBBox[nid]={x:bb.x,y:bb.y,w:bb.width,h:bb.height}; } catch(e){} }
+  });
+  fitAll();
+  updateMinimap();
+},120));
+</script>
+</body>
+</html>
